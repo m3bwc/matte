@@ -58,14 +58,18 @@
       "json",
       "ts"
     ],
+    "roots": [
+      "<rootDir>/tests/",
+      "<rootDir>/src/"
+    ],
     "testTimeout": 30000,
-    "rootDir": "./tests",
+    "rootDir": ".",
     "testRegex": ".spec.ts$",
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
     "setupFiles": [
-      "./jest.settings.ts"
+      "./tests/jest.settings.ts"
     ],
     "coverageDirectory": "./coverage",
     "collectCoverageFrom": [
