@@ -5,5 +5,24 @@
         "tests",
         "**/*spec.ts",
         "**/jest.**.ts"
-    ]
+    ],
+    "compilerOptions": {
+      "outDir": "./dist",
+      "sourceMap": false,
+      "declaration": true,
+      "allowUnusedLabels": true,
+      "noUnusedLocals": false,
+      "esModuleInterop": true,
+      "resolveJsonModule": true,
+      "moduleResolution": "node",
+      "noUnusedParameters": false,
+      "emitDecoratorMetadata": true,
+      "experimentalDecorators": true,
+      "noImplicitAny": false,
+      "target": "ES6",
+      "lib": [],
+      "module": "commonjs",
+      "baseUrl": "./src",
+      "allowSyntheticDefaultImports": true
+    }
 }
