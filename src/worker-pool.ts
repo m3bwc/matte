@@ -94,7 +94,7 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
   }
 
   private setUpQueue(queueType: QueueType): void {
-    this.taskQueue = queueType === QueueType.FIFO ? new PriorityQueue<TTask>() : new Queue<TTask>();
+    this.taskQueue = queueType === QueueType.FIFO ? new Queue<TTask>() : new PriorityQueue<TTask>();
   }
 
   private restore(deadWorker: TWorkerWrapper): void {
