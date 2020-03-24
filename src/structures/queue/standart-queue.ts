@@ -1,9 +1,9 @@
 import LinkedList from '../linked-list/linked-list';
 
 export class Queue<T> {
-  linkedList: LinkedList;
+  linkedList: LinkedList<T>;
   constructor() {
-    this.linkedList = new LinkedList();
+    this.linkedList = new LinkedList<T>();
   }
 
   isEmpty(): boolean {

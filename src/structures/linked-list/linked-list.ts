@@ -7,8 +7,8 @@ export interface LinkedListFindInterface<T> {
 }
 
 export default class LinkedList<T> {
-  private head: LinkedListNode<T>;
-  private tail: LinkedListNode<T>;
+  public head: LinkedListNode<T>;
+  public tail: LinkedListNode<T>;
   protected compare: Comparator;
 
   constructor(comparatorFunction?: Function) {
