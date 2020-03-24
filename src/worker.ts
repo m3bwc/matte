@@ -21,7 +21,10 @@ const vmContext = createContext(context);
 runInContext(`(__persistent_context_initialization__)();`, vmContext);
 
 parentPort.on('message', async message => {
-  const { handler, config } = deserialize(message);
+  const deserialized = deserialize(message);
+  const config = deserialized.config ? deserialized.config : { ctx: {}, data: undefined };
+  const handler = deserialized.handler;
+
   const response = {
     error: undefined,
     data: undefined,
@@ -51,9 +54,14 @@ parentPort.on('message', async message => {
       runInContext(`(${contextInitialize.toString()})(${stringifiedContext})`, vmContext);
     }
 
-    const script = `this['${computeIdVariable}'] = (${handler})(${JSON.stringify(config.data)});`;
+    const script = `try {
+      this['${computeIdVariable}'] = (${handler})(${JSON.stringify(config.data)});
+     } catch (e) { this['${computeIdVariable}'] = e; }`;
     runInContext(script, vmContext, { displayErrors: true });
     response.data = await vmContext[computeIdVariable];
+    if (response.data instanceof Error) {
+      throw response.data;
+    }
 
     if (config.ctx) {
       runInContext(`(${clearContext.toString()})(${stringifiedContext})`, vmContext);
