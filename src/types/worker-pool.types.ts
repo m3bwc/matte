@@ -14,9 +14,9 @@ export enum QueueType {
 }
 
 export type TWorkerConfig = {
-  resourceLimits: TWorkerResourceLimit;
-  timeout: number;
-  executable: string;
+  resourceLimits?: TWorkerResourceLimit;
+  timeout?: number;
+  executable?: string;
 };
 
 export type TPoolConfig = {
