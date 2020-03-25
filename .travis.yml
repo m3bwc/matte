@@ -21,7 +21,7 @@ jobs:
         - npm run test
     - stage: versioning
       script:
-        - npx @priestine/semantics --prefix=v --user=priestine --password=${SEMANTICS_TOKEN}
+        - npx @priestine/semantics --prefix=v --user=datapain --password=${SEMANTICS_TOKEN}
     - stage: publish
       script:
         - bash deploy.sh
