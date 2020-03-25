@@ -9,12 +9,13 @@ const isObject = obj => {
   return type === 'function' || (type === 'object' && !!obj);
 };
 
-// declare object for vmContext
-const context = {};
-
 // declare context property where we going to compute your messages
 const computeIdVariable = crypto.randomBytes(16).toString('hex');
-context[computeIdVariable] = undefined;
+
+// declare object for vmContext
+const context = {
+  computeIdVariable: undefined,
+};
 
 // we going to initialize our worker persistent context which we want used to compute your messages
 const vmContext = createContext(context);

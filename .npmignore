@@ -1,0 +1,16 @@
+.editorconfig
+.eslingignore
+.eslingrc.js
+.gitignore
+.prettierrc.js
+.travis.yml
+commitlint.config.js
+*.ts
+!*.d.ts
+tsconfig*.json
+tests
+.idea
+.vscode
+coverage
+docs
+deploy.sh

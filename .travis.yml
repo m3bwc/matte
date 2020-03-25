@@ -1,0 +1,27 @@
+sudo: false
+language: node_js
+node_js:
+  - "10"
+cache:
+  directories:
+    - node_modules
+
+stages:
+  - check
+  - name: versioning
+    if: branch = master
+  - name: publish
+    if: tag IS present AND tag =~ ^v
+
+jobs:
+  include:
+    - stage: check
+      script:
+        - npm run lint
+        - npm run test
+    - stage: versioning
+      script:
+        - npx @priestine/semantics --prefix=v --user=priestine --password=${SEMANTICS_TOKEN}
+    - stage: publish
+      script:
+        - bash deploy.sh
