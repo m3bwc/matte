@@ -1,4 +1,5 @@
 import { TTask, TaskPriority } from './task.types';
+import { WorkerPoolQueueInterface } from './queue.type';
 
 export type TWorkerResourceLimit = {
   maxOldGenerationSizeMb: number;
@@ -18,8 +19,11 @@ export type TWorkerConfig = {
   executable?: string;
 };
 
+export type TQueueImplementation = new () => WorkerPoolQueueInterface<TTask>;
+
 export type TPoolConfig = {
   queueType?: QueueType;
+  queueImpl?: TQueueImplementation;
   maxWorkers?: number;
   worker?: TWorkerConfig;
   persistentContextFn?(): void;
