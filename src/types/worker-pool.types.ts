@@ -1,6 +1,4 @@
-import { TWorkerWrapper } from './worker.types';
 import { TTask, TaskPriority } from './task.types';
-import { Worker } from 'worker_threads';
 
 export type TWorkerResourceLimit = {
   maxOldGenerationSizeMb: number;
@@ -11,6 +9,7 @@ export type TWorkerResourceLimit = {
 export enum QueueType {
   PRIORITY,
   FIFO,
+  CUSTOM,
 }
 
 export type TWorkerConfig = {
