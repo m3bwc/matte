@@ -1,7 +1,8 @@
 import MinHeap from '../heap/min-heap';
 import Comparator from '../comparator';
+import { WorkerPoolQueueInterface } from 'types/queue.type';
 
-export class PriorityQueue<T> extends MinHeap<T> {
+export class PriorityQueue<T> extends MinHeap<T> implements WorkerPoolQueueInterface<T> {
   private priorities: Map<T, number>;
 
   constructor() {

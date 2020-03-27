@@ -1,6 +1,7 @@
 import LinkedList from '../linked-list/linked-list';
+import { WorkerPoolQueueInterface } from '../../types/queue.type';
 
-export class Queue<T> {
+export class Queue<T> implements WorkerPoolQueueInterface<T> {
   linkedList: LinkedList<T>;
   constructor() {
     this.linkedList = new LinkedList<T>();
@@ -18,9 +19,11 @@ export class Queue<T> {
     return this.linkedList.head.value;
   }
 
-  add(value: T): void {
+  add(value: T): this {
     this.linkedList.append(value);
+    return this;
   }
+
   poll(): T {
     const removedHead = this.linkedList.deleteHead();
     return removedHead ? removedHead.value : null;
