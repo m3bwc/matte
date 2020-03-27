@@ -11,6 +11,7 @@ import {
   TaskPriority,
   QueueType,
   WorkerPoolQueueInterface,
+  TQueueImplementation,
 } from './types';
 import { Worker } from 'worker_threads';
 import { readFileSync } from 'fs';
@@ -28,12 +29,12 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
 
   constructor(config: TPoolConfig = {}) {
     super();
-    const { maxWorkers, worker, persistentContextFn, queueType } = config;
+    const { maxWorkers, worker, persistentContextFn, queueType, queueImpl } = config;
 
     this.setUpMaxWorkers(maxWorkers);
     this.setUpWorkerConfig(worker);
     this.setUpPersistentContextFn(persistentContextFn);
-    this.setUpQueue(queueType);
+    this.setUpQueue(queueType, queueImpl);
 
     this.upWorkers();
   }
@@ -94,8 +95,13 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
     };
   }
 
-  private setUpQueue(queueType: QueueType): void {
-    this.taskQueue = queueType === QueueType.FIFO ? new Queue<TTask>() : new PriorityQueue<TTask>();
+  private setUpQueue(queueType: QueueType, queueImpl?: TQueueImplementation): void {
+    if (queueType === QueueType.CUSTOM && typeof queueImpl === 'function') {
+      this.taskQueue = new queueImpl();
+    } else {
+      this.taskQueue =
+        queueType === QueueType.FIFO ? new Queue<TTask>() : new PriorityQueue<TTask>();
+    }
   }
 
   private restore(deadWorker: TWorkerWrapper): void {
