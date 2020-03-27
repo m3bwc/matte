@@ -126,7 +126,7 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
     });
   }
 
-  private tick(): void {
+  private async tick(): Promise<void> {
     for (const worker of this.workers.filter(w => w.status === WorkerState.WORKER_STATE_OFF)) {
       this.restore(worker);
     }
@@ -143,7 +143,7 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
       return;
     }
 
-    const task = this.taskQueue.poll();
+    const task = await this.taskQueue.poll();
     availableWorker.status = WorkerState.WORKER_STATE_BUSY;
     try {
       availableWorker.worker.postMessage(
@@ -175,11 +175,11 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
   public async terminate(): Promise<void> {
     await Promise.all(this.workers.map(w => w.worker).map(worker => worker.terminate()));
     this.workers = [];
-    this.taskQueue.clear();
+    await this.taskQueue.clear();
   }
 
-  public add(task: TTask, priority: TaskPriority = TaskPriority.LOW): void {
-    this.taskQueue.add(task, priority);
+  public async add(task: TTask, priority: TaskPriority = TaskPriority.LOW): Promise<void> {
+    await this.taskQueue.add(task, priority);
     setImmediate(() => this.tick());
   }
 }
