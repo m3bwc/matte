@@ -10,6 +10,7 @@ import {
   WorkerResponseInterface,
   TaskPriority,
   QueueType,
+  WorkerPoolQueueInterface,
 } from './types';
 import { Worker } from 'worker_threads';
 import { readFileSync } from 'fs';
@@ -22,7 +23,7 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
   private maxWorkers: number;
   private workerConfig: TWorkerConfig;
   private persistentContextFn: string;
-  private taskQueue: PriorityQueue<TTask> | Queue<TTask>;
+  private taskQueue: WorkerPoolQueueInterface<TTask>;
   private workers: TWorkerWrapper[] = [];
 
   constructor(config: TPoolConfig = {}) {
