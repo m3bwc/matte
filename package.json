@@ -22,7 +22,17 @@
     "node.js",
     "worker",
     "pool",
-    "multithreading"
+    "multithreading",
+    "concurrency",
+    "performance",
+    "parallelism",
+    "compute",
+    "workers",
+    "threads",
+    "threading",
+    "mpi",
+    "throughput",
+    "thread pool"
   ],
   "author": "Konstantin Tsepelev <strangeratthedoor@gmail.com> (https://github.com/datapain)",
   "license": "MIT",
