@@ -27,7 +27,7 @@ As we know Node.js is asynchronous but some features stay synchronous. The matte
 import { WorkerPool, QueueType } from '@datapain/matte';
 
 const pool = new WorkerPool({
-  queueType: QueueType.PRIORITY, // or QueueType.FIFO; default is QueueType.PRIORITY
+  queueType: QueueType.PRIORITY, // or QueueType.FIFO; or your custom QueueType which implement WorkerPoolQueueInterface; by default is QueueType.PRIORITY
   maxWorkers: 4, // by default used cpus length
   worker: {
     resourceLimits: { // by default used native worker limits
