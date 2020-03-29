@@ -45,7 +45,7 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
       this.workers.push({ worker, status: WorkerState.WORKER_STATE_SPAWNING });
       worker.once(
         'online',
-        (index => () => {
+        (index => (): void => {
           setImmediate(() => {
             this.workers[index].status = WorkerState.WORKER_STATE_ONLINE;
             this.workers[index].worker.removeAllListeners();
@@ -57,7 +57,7 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
       );
       worker.once(
         'error',
-        (index => (error: Error) => {
+        (index => (error: Error): void => {
           setImmediate(() => {
             this.workers[index].status = WorkerState.WORKER_STATE_OFF;
             this.workers[index].worker.removeAllListeners();
