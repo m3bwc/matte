@@ -23,6 +23,7 @@ As we know Node.js is asynchronous but some features stay synchronous. The matte
 
 ## Usage
 
+Use Worker Pool by promise handling:
 ```typescript
 import { WorkerPool, QueueType } from '@datapain/matte';
 
@@ -34,9 +35,9 @@ const pool = new WorkerPool({
       maxOldGenerationSizeMb: 64,
       maxYoungGenerationSizeMb: 16,
       codeRangeSizeMb: 4,
-    }
+    },
     timeout: 1000, // by default is 3000 ms
-    executable: './path/to/your/Worker-file', // by default used matte implimentation
+    executable: './path/to/your/Worker-file', // by default used matte implementation
   },
   persistentContextFn: () => {
     this.GLOBAL_CONTEXT = 'MATTE IS';
@@ -53,8 +54,62 @@ new Promise((resolve, reject) => pool.add({
       MESSAGE_CONTEXT: ' ',
     }
   }
-});
+}));
+
 ```
+
+Also, you can use it with the callback:
+```typescript
+import { WorkerPool, QueueType } from '@datapain/matte';
+
+const pool = new WorkerPool({
+  queueType: QueueType.PRIORITY, // or QueueType.FIFO; or your custom QueueType which implement WorkerPoolQueueInterface; by default is QueueType.PRIORITY
+  maxWorkers: 4, // by default used cpus length
+  worker: {
+    resourceLimits: { // by default used native worker limits
+      maxOldGenerationSizeMb: 64,
+      maxYoungGenerationSizeMb: 16,
+      codeRangeSizeMb: 4,
+    },
+    timeout: 1000, // by default is 3000 ms
+    executable: './path/to/your/Worker-file', // by default used matte implementation
+  },
+  persistentContextFn: () => {
+    this.GLOBAL_CONTEXT = 'MATTE IS';
+  },
+});
+
+new Promise((resolve, reject) => pool.add({
+  callback: (err, data) => {
+    if(err) reject(err);
+    resolve(data);
+  },
+  handler: (data) => GLOBAL_CONTEXT + MESSAGE_CONTEXT + data,
+  config: {
+    data: 'AWESOME',
+    ctx: {
+      MESSAGE_CONTEXT: ' ',
+    }
+  }
+}));
+
+```
+
+finally, the simple way:
+```typescript
+import { WorkerPool, TaskPriority } from '@datapain/matte';
+import fetch from 'node-fetch'
+
+const pool = new WorkerPool();
+pool.add({
+  callback: (err, data) => {
+    if(err) console.error(err);
+    console.log(data);
+  },
+  handler: () => fetch('https://github.com/').then(res => res.text()), 
+}, TaskPriority.CRITICAL);
+
+``` 
 
 ## Versioning
 
