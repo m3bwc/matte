@@ -161,11 +161,35 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
       );
       availableWorker.worker.once('message', (message: TypedArray) => {
         const { error, data } = deserialize(message) as WorkerResponseInterface<unknown>;
-        if (error) task.reject(error);
+        const usePromise =
+          Boolean(task.resolve) &&
+          typeof task.resolve === 'function' &&
+          Boolean(task.reject) &&
+          typeof task.reject === 'function';
+        const callbackExists = Boolean(task.callback) && typeof task.callback === 'function';
+
         availableWorker.worker.removeAllListeners();
         availableWorker.status = WorkerState.WORKER_STATE_ONLINE;
-        task.resolve(data);
         setImmediate(() => this.tick());
+
+        if (error) {
+          const e = new Error(error.message);
+          if (usePromise) {
+            task.reject(error);
+          } else {
+            if (callbackExists) {
+              task.callback(e);
+            } else {
+              throw e;
+            }
+          }
+          return;
+        }
+        return usePromise
+          ? task.resolve(data)
+          : callbackExists
+          ? task.callback(null, data)
+          : undefined;
       });
       availableWorker.worker.once('error', (error: Error) => {
         availableWorker.status = WorkerState.WORKER_STATE_OFF;

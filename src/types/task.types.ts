@@ -13,7 +13,8 @@ export enum TaskPriority {
 
 export type TTask = {
   handler: Function;
-  resolve: Function;
-  reject: Function;
+  resolve?: Function;
+  callback?: (err: Error, result?: unknown) => void;
+  reject?: Function;
   config?: TaskQueryInterface;
 };

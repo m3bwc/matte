@@ -26,6 +26,21 @@ describe('Worker pool', () => {
     expect(result).toEqual(2);
   });
 
+  it('should be process task with callback', async () => {
+    const result = await new Promise((resolve, reject) => {
+      pool.add({
+        callback: (err, data) => {
+          if (err) reject(err);
+          resolve(data);
+        },
+        handler: () => {
+          return 1 + 1;
+        },
+      });
+    });
+    expect(result).toEqual(2);
+  });
+
   it('should be catch rejected error', async () => {
     const result = await new Promise((resolve, reject) => {
       pool.add(
