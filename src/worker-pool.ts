@@ -49,7 +49,10 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
           setImmediate(() => {
             this.workers[index].status = WorkerState.WORKER_STATE_ONLINE;
             this.workers[index].worker.removeAllListeners();
-            if (this.workers.length === this.maxWorkers) {
+            if (
+              this.workers.length === this.maxWorkers &&
+              this.workers.every(worker => worker.status === WorkerState.WORKER_STATE_ONLINE)
+            ) {
               this.emit('ready');
             }
           });
