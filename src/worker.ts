@@ -14,12 +14,17 @@ const computeIdVariable = crypto.randomBytes(16).toString('hex');
 
 // declare object for vmContext
 const context = {
+  console,
+  require,
   computeIdVariable: undefined,
 };
 
 // we going to initialize our worker persistent context which we want used to compute your messages
 const vmContext = createContext(context);
-runInContext(`(__persistent_context_initialization__)();`, vmContext);
+// eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+// @ts-ignore
+const persistentContextFn = __persistent_context_initialization__;
+runInContext(`(${persistentContextFn.toString()})();`, vmContext);
 
 parentPort.on('message', async message => {
   const deserialized = deserialize(message);
