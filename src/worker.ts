@@ -9,6 +9,10 @@ const isObject = obj => {
   return type === 'function' || (type === 'object' && !!obj);
 };
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+// @ts-ignore
+const persistentContext = __persistent_context_data__;
+
 // declare context property where we going to compute your messages
 const computeIdVariable = crypto.randomBytes(16).toString('hex');
 
@@ -24,7 +28,12 @@ const vmContext = createContext(context);
 // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
 // @ts-ignore
 const persistentContextFn = __persistent_context_initialization__;
-runInContext(`(${persistentContextFn.toString()})();`, vmContext);
+runInContext(
+  `(${persistentContextFn.toString()})(${
+    typeof persistentContext !== 'string' ? JSON.stringify(persistentContext) : persistentContext
+  });`,
+  vmContext,
+);
 
 parentPort.on('message', async message => {
   const deserialized = deserialize(message);

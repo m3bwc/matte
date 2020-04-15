@@ -11,10 +11,12 @@ type Reject = (reason?: unknown) => void;
 
 const workerExecutable = readFileSync(join(process.cwd(), 'src', 'worker.ts')).toString('utf8');
 const setPersistentContextInWorker = (workerExecutable: string) => (fn?: Function): string =>
-  workerExecutable.replace(
-    '__persistent_context_initialization__',
-    Boolean(fn) ? fn.toString() : 'function () { return; }',
-  );
+  workerExecutable
+    .replace(
+      '__persistent_context_initialization__',
+      Boolean(fn) ? fn.toString() : 'function () { return; }',
+    )
+    .replace('__persistent_context_data__', JSON.stringify(undefined));
 
 const setPersistentContext = setPersistentContextInWorker(workerExecutable);
 const createWorker = (workerScript: string): Worker => new Worker(workerScript, { eval: true });

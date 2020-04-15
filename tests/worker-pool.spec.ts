@@ -8,6 +8,10 @@ describe('Worker pool', () => {
     await new Promise(resolve => {
       pool = new WorkerPool({
         queueType: QueueType.FIFO,
+        persistentContext: { foo: 'var' },
+        persistentContextFn: function(context) {
+          this.bar = context;
+        },
       });
       pool.once('ready', resolve);
     });
@@ -57,6 +61,19 @@ describe('Worker pool', () => {
     expect(result).toBeDefined();
     expect(result).toHaveProperty('message');
     expect(result['message']).toEqual('some');
+  });
+
+  it('should be process task with persistence context fn and data', async () => {
+    const result = await new Promise((resolve, reject) => {
+      pool.add({
+        resolve,
+        reject,
+        handler: () => {
+          return this.bar.foo;
+        },
+      });
+    });
+    expect(result).toEqual('var');
   });
 
   afterAll(async () => {

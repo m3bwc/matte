@@ -26,14 +26,22 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
   private persistentContextFn: string;
   private taskQueue: WorkerPoolQueueInterface<TTask>;
   private workers: TWorkerWrapper[] = [];
+  private persistentContext: Record<string, any> | any[];
 
   constructor(config: TPoolConfig = {}) {
     super();
-    const { maxWorkers, worker, persistentContextFn, queueType, queueImpl } = config;
+    const {
+      maxWorkers,
+      worker,
+      persistentContextFn,
+      queueType,
+      queueImpl,
+      persistentContext,
+    } = config;
 
     this.setUpMaxWorkers(maxWorkers);
     this.setUpWorkerConfig(worker);
-    this.setUpPersistentContextFn(persistentContextFn);
+    this.setUpPersistentContextFn(persistentContextFn, persistentContext);
     this.setUpQueue(queueType, queueImpl);
 
     this.upWorkers();
@@ -74,12 +82,16 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
     }
   }
 
-  private setUpPersistentContextFn(persistentContextFn: () => void): void {
+  private setUpPersistentContextFn(
+    persistentContextFn: () => void,
+    persistentContext: Record<string, any> | any[],
+  ): void {
     this.persistentContextFn = persistentContextFn
       ? persistentContextFn.toString()
       : (() => {
           return;
         }).toString();
+    this.persistentContext = persistentContext || undefined;
   }
 
   private setUpMaxWorkers(maxWorkers: number): void {
@@ -126,10 +138,9 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
   }
 
   private make(): Worker {
-    const workerScript = this.workerConfig.executable.replace(
-      '__persistent_context_initialization__',
-      this.persistentContextFn,
-    );
+    const workerScript = this.workerConfig.executable
+      .replace('__persistent_context_initialization__', this.persistentContextFn)
+      .replace('__persistent_context_data__', JSON.stringify(this.persistentContext));
     return new Worker(workerScript, {
       eval: true,
       resourceLimits: this.workerConfig.resourceLimits,

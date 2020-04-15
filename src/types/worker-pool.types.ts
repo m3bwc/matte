@@ -26,7 +26,8 @@ export type TPoolConfig = {
   queueImpl?: TQueueImplementation;
   maxWorkers?: number;
   worker?: TWorkerConfig;
-  persistentContextFn?(): void;
+  persistentContextFn?(context?: Record<string, any> | any[]): void;
+  persistentContext?: Record<string, any> | any[];
 };
 
 export interface WorkerPoolInterface {
