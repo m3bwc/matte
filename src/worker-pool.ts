@@ -27,6 +27,8 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
   private taskQueue: WorkerPoolQueueInterface<TTask>;
   private workers: TWorkerWrapper[] = [];
   private persistentContext: Record<string, any> | any[];
+  private terminated = false;
+  private terminateFn: () => void;
 
   constructor(config: TPoolConfig = {}) {
     super();
@@ -37,12 +39,14 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
       queueType,
       queueImpl,
       persistentContext,
+      terminateFn,
     } = config;
 
     this.setUpMaxWorkers(maxWorkers);
     this.setUpWorkerConfig(worker);
     this.setUpPersistentContextFn(persistentContextFn, persistentContext);
     this.setUpQueue(queueType, queueImpl);
+    this.setUpTerminateFn(terminateFn);
 
     this.upWorkers();
   }
@@ -218,13 +222,43 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
   }
 
   public async terminate(): Promise<void> {
+    this.terminated = true;
+    await this.taskQueue.clear();
+    await Promise.all(
+      this.workers.map(
+        () =>
+          new Promise((resolve, reject) =>
+            this.shadowAdd({
+              resolve,
+              reject,
+              handler:
+                this.terminateFn ||
+                function() {
+                  return;
+                },
+            }),
+          ),
+      ),
+    );
+
     await Promise.all(this.workers.map(w => w.worker).map(worker => worker.terminate()));
     this.workers = [];
     await this.taskQueue.clear();
   }
 
-  public async add(task: TTask, priority: TaskPriority = TaskPriority.LOW): Promise<void> {
+  private async shadowAdd(task: TTask, priority: TaskPriority = TaskPriority.LOW): Promise<void> {
     await this.taskQueue.add(task, priority);
     setImmediate(() => this.tick());
+  }
+
+  public async add(task: TTask, priority: TaskPriority = TaskPriority.LOW): Promise<void> {
+    if (!this.terminated) {
+      return await this.shadowAdd(task, priority);
+    }
+    throw new Error('Current Worker pool is terminated');
+  }
+
+  private setUpTerminateFn(terminateFn: () => void) {
+    this.terminateFn = terminateFn;
   }
 }

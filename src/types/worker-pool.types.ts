@@ -28,6 +28,7 @@ export type TPoolConfig = {
   worker?: TWorkerConfig;
   persistentContextFn?(context?: Record<string, any> | any[]): void;
   persistentContext?: Record<string, any> | any[];
+  terminateFn?(): void;
 };
 
 export interface WorkerPoolInterface {
