@@ -1,4 +1,4 @@
-type SyncOrAsync<T> = Promise<T> | T;
+export type SyncOrAsync<T> = Promise<T> | T;
 
 export interface WorkerPoolQueueInterface<T> {
   add(item: T, ...args: unknown[]): SyncOrAsync<this>;

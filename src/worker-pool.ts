@@ -29,6 +29,7 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
   private persistentContext: Record<string, any> | any[];
   private terminated = false;
   private terminateFn: () => void;
+  private tickTimeout;
 
   constructor(config: TPoolConfig = {}) {
     super();
@@ -164,7 +165,12 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
       worker => worker.status === WorkerState.WORKER_STATE_ONLINE,
     );
     if (!availableWorker) {
-      setImmediate(() => this.tick());
+      if (this.tickTimeout) {
+        clearTimeout(this.tickTimeout);
+      }
+      this.tickTimeout = setTimeout(() => {
+        this.tick();
+      }, 10);
       return;
     }
 
