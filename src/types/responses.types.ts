@@ -4,4 +4,5 @@ export interface WorkerResponseInterface<T> {
     stack: string;
   };
   data: T;
+  id: string;
 }

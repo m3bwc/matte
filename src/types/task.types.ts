@@ -1,4 +1,7 @@
-export interface TaskQueryInterface<T = Record<string, unknown>, U = Record<string, unknown>> {
+export interface TaskQueryInterface<
+  T = Record<string, unknown>,
+  U = Record<string, unknown> | string | number
+> {
   ctx?: T;
   data?: U;
 }
@@ -11,10 +14,22 @@ export enum TaskPriority {
   URGENT,
 }
 
-export type TTask = {
-  handler: (...args: unknown[]) => unknown;
-  resolve?: (value?: any) => unknown;
-  callback?: (err: Error, result?: unknown) => void;
-  reject?: (reason?: any) => unknown;
-  config?: TaskQueryInterface;
-};
+export interface TTask<
+  T = Record<string, unknown>,
+  U = Record<string, unknown> | string | number,
+  R = unknown
+> {
+  handler: (data: U) => R;
+  resolve?: (value?: any) => void;
+  callback?: (err: Error, result?: R) => void;
+  reject?: (reason?: any) => void;
+  config?: TaskQueryInterface<T, U>;
+}
+
+export interface IQueuedTask<
+  T = Record<string, unknown>,
+  U = Record<string, unknown> | string | number
+> {
+  task: TTask<T, U>;
+  id: string;
+}

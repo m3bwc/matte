@@ -1,4 +1,4 @@
-import { TTask, TaskPriority } from './task.types';
+import { TTask, TaskPriority, IQueuedTask } from './task.types';
 import { WorkerPoolQueueInterface } from './queue.type';
 
 export type TWorkerResourceLimit = {
@@ -19,11 +19,12 @@ export type TWorkerConfig = {
   executable?: string;
 };
 
-export type TQueueImplementation = new () => WorkerPoolQueueInterface<TTask>;
+export type TQueueImplementation = new () => WorkerPoolQueueInterface<IQueuedTask>;
 
 export type TPoolConfig = {
   queueType?: QueueType;
   queueImpl?: TQueueImplementation;
+  maxJobsInWorker?: number;
   maxWorkers?: number;
   worker?: TWorkerConfig;
   persistentContextFn?(context?: Record<string, any> | any[]): void;
@@ -32,7 +33,6 @@ export type TPoolConfig = {
 };
 
 export interface WorkerPoolInterface {
-  // new (config: TPoolConfig): AbstractWorkerPool; TODO: fix typing for the constructor
   terminate(): Promise<void>;
   add(task: TTask): void;
   add(task: TTask, priority?: TaskPriority): void;

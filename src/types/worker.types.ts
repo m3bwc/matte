@@ -10,4 +10,5 @@ export enum WorkerState {
 export type TWorkerWrapper = {
   status: WorkerState;
   worker: Worker;
+  jobs: number;
 };

@@ -1,20 +1,71 @@
-import { WorkerPool } from '../src/worker-pool';
-import { TaskPriority, QueueType } from '../src/types';
+import { WorkerPool } from '../src';
+import { QueueType, TaskPriority } from '../src/types';
+import { cpus } from 'os';
+
+const range = (min: number, max: number) => {
+  const array: number[] = [];
+  const lower = Math.min(min, max);
+  const upper = Math.max(min, max) - 1;
+
+  for (let i = lower; i <= upper; i++) {
+    array.push(i);
+  }
+  return array;
+};
+
+const sum = (array: number[]) => {
+  let total = 0;
+  for (const i in array) {
+    total = total + array[i];
+  }
+  return total;
+};
 
 describe('Worker pool', () => {
   let pool: WorkerPool;
+  let multipleItemsPool: WorkerPool;
 
   beforeAll(async () => {
-    await new Promise((resolve) => {
-      pool = new WorkerPool({
-        queueType: QueueType.FIFO,
-        persistentContext: { foo: 'var' },
-        persistentContextFn: function (context) {
-          this.bar = context;
-        },
-      });
-      pool.once('ready', resolve);
-    });
+    await Promise.all([
+      new Promise((resolve) => {
+        pool = new WorkerPool({
+          queueType: QueueType.FIFO,
+          persistentContext: { foo: 'var' },
+          persistentContextFn: function (context) {
+            this.bar = context;
+          },
+        });
+        pool.once('ready', resolve);
+      }),
+      new Promise((resolve) => {
+        multipleItemsPool = new WorkerPool({
+          maxJobsInWorker: cpus().length,
+          queueType: QueueType.FIFO,
+        });
+        pool.once('ready', resolve);
+      }),
+    ]);
+  });
+
+  it('should process multiple tasks', async () => {
+    const rangeLength = 100;
+    const result = (await Promise.all(
+      new Array(rangeLength).fill(null).map(
+        (_, data) =>
+          new Promise((resolve, reject) => {
+            multipleItemsPool.add({
+              handler: (position) => position,
+              resolve,
+              reject,
+              config: {
+                data,
+              },
+            });
+          }),
+      ),
+    )) as number[];
+
+    expect(sum(result)).toBe(sum(range(0, rangeLength)));
   });
 
   it('should be process task', async () => {
@@ -77,6 +128,6 @@ describe('Worker pool', () => {
   });
 
   afterAll(async () => {
-    await pool.terminate();
+    await Promise.all([pool.terminate(), multipleItemsPool.terminate()]);
   });
 });

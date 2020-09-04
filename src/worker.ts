@@ -4,12 +4,12 @@ const { createContext, runInContext } = require('vm');
 const { deserialize, serialize } = require('v8');
 const crypto = require('crypto');
 
-const isObject = obj => {
+const isObject = (obj) => {
   const type = typeof obj;
   return type === 'function' || (type === 'object' && !!obj);
 };
 
-// eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+// eslint-disable-next-line
 // @ts-ignore
 const persistentContext = __persistent_context_data__;
 
@@ -30,7 +30,7 @@ const context = {
 
 // we going to initialize our worker persistent context which we want used to compute your messages
 const vmContext = createContext(context);
-// eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+// eslint-disable-next-line
 // @ts-ignore
 const persistentContextFn = __persistent_context_initialization__;
 runInContext(
@@ -40,7 +40,7 @@ runInContext(
   vmContext,
 );
 
-parentPort.on('message', async message => {
+parentPort.on('message', async (message) => {
   const deserialized = deserialize(message);
   const config = deserialized.config ? deserialized.config : { ctx: {}, data: undefined };
   const handler = deserialized.handler;
@@ -48,6 +48,7 @@ parentPort.on('message', async message => {
   const response = {
     error: undefined,
     data: undefined,
+    id: deserialized.id,
   };
 
   try {
@@ -55,18 +56,18 @@ parentPort.on('message', async message => {
 
     if (
       isObject(config.ctx) &&
-      Object.keys(config.ctx).some(property => vmContext.hasOwnProperty(property))
+      Object.keys(config.ctx).some((property) => vmContext.hasOwnProperty(property))
     ) {
       throw new Error("The transferred context shouldn't overlap the persistent context");
     }
 
-    const contextInitialize = data => {
-      Object.keys(data).forEach(key => {
+    const contextInitialize = (data) => {
+      Object.keys(data).forEach((key) => {
         this[key] = data[key];
       });
     };
-    const clearContext = data => {
-      Object.keys(data).forEach(key => {
+    const clearContext = (data) => {
+      Object.keys(data).forEach((key) => {
         Reflect.deleteProperty(this, key);
       });
     };
@@ -96,6 +97,7 @@ parentPort.on('message', async message => {
     parentPort.postMessage(serialize(response));
     Reflect.deleteProperty(response, 'data');
     Reflect.deleteProperty(response, 'error');
+    Reflect.deleteProperty(response, 'id');
   } catch (e) {
     console.error(e);
     process.exit(1);
