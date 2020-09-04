@@ -1,6 +1,7 @@
-import { WorkerPool } from '../src';
+import { IQueuedTask, SyncOrAsync, TTask, WorkerPool, WorkerPoolQueueInterface } from '../src';
 import { QueueType, TaskPriority } from '../src/types';
 import { cpus } from 'os';
+import { nanoid } from 'nanoid';
 
 const range = (min: number, max: number) => {
   const array: number[] = [];
@@ -21,6 +22,30 @@ const sum = (array: number[]) => {
   return total;
 };
 
+class ArrayedQueue implements WorkerPoolQueueInterface<TTask> {
+  private queue: IQueuedTask[];
+  constructor() {
+    this.queue = [];
+  }
+
+  add(task: TTask, ...args: unknown[]): SyncOrAsync<this> {
+    this.queue.push({ task, id: nanoid() });
+    return this;
+  }
+
+  clear(): SyncOrAsync<void> {
+    this.queue = [];
+  }
+
+  isEmpty(): SyncOrAsync<boolean> {
+    return !Boolean(this.queue.length);
+  }
+
+  poll(): SyncOrAsync<TTask> {
+    return this.queue.pop()?.task;
+  }
+}
+
 describe('Worker pool', () => {
   let pool: WorkerPool;
   let multipleItemsPool: WorkerPool;
@@ -40,7 +65,8 @@ describe('Worker pool', () => {
       new Promise((resolve) => {
         multipleItemsPool = new WorkerPool({
           maxJobsInWorker: cpus().length,
-          queueType: QueueType.FIFO,
+          queueType: QueueType.CUSTOM,
+          queueImpl: ArrayedQueue,
         });
         pool.once('ready', resolve);
       }),
