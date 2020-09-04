@@ -5,11 +5,11 @@ describe('Worker pool', () => {
   let pool: WorkerPool;
 
   beforeAll(async () => {
-    await new Promise(resolve => {
+    await new Promise((resolve) => {
       pool = new WorkerPool({
         queueType: QueueType.FIFO,
         persistentContext: { foo: 'var' },
-        persistentContextFn: function(context) {
+        persistentContextFn: function (context) {
           this.bar = context;
         },
       });
@@ -68,7 +68,7 @@ describe('Worker pool', () => {
       pool.add({
         resolve,
         reject,
-        handler: () => {
+        handler: function () {
           return this.bar.foo;
         },
       });

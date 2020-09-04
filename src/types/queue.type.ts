@@ -5,5 +5,5 @@ export interface WorkerPoolQueueInterface<T> {
   clear(): SyncOrAsync<void>;
   isEmpty(): SyncOrAsync<boolean>;
   poll(): SyncOrAsync<T>;
-  toString?(callback: Function): SyncOrAsync<string>;
+  toString?(callback: (...args: unknown[]) => unknown): SyncOrAsync<string>;
 }

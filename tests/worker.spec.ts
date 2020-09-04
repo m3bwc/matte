@@ -4,13 +4,14 @@ import { deserialize, serialize } from 'v8';
 import TypedArray = NodeJS.TypedArray;
 import { join } from 'path';
 import { WorkerResponseInterface } from '../src/types';
-import faker from 'faker';
 
 type Resolve<T> = (value?: T | PromiseLike<T>) => void;
 type Reject = (reason?: unknown) => void;
 
 const workerExecutable = readFileSync(join(process.cwd(), 'src', 'worker.ts')).toString('utf8');
-const setPersistentContextInWorker = (workerExecutable: string) => (fn?: Function): string =>
+const setPersistentContextInWorker = (workerExecutable: string) => (
+  fn?: (...args: unknown[]) => unknown,
+): string =>
   workerExecutable
     .replace(
       '__persistent_context_initialization__',
@@ -27,12 +28,12 @@ const handleMessageFromWorker = <T>(resolve: Resolve<T>, reject: Reject) => (
   if (error) reject(error);
   resolve(data);
 };
-const catchWorkerExit = reject => (code): void => {
+const catchWorkerExit = (reject) => (code): void => {
   if (code !== 0) reject(new Error(`Worker stopped with exit code ${code}`));
 };
 const initJob = (worker: Worker) => <T>(
-  handler: Function,
-  ctx = {},
+  handler: (...args: unknown[]) => unknown,
+  ctx: Record<string, any> = {},
   data = undefined,
 ): Promise<T> =>
   new Promise((resolve, reject) => {
@@ -54,14 +55,14 @@ const initJob = (worker: Worker) => <T>(
 describe('Worker test', () => {
   it('should be computed in the worker', async () => {
     const worker = createWorker(
-      setPersistentContext(() => {
+      setPersistentContext(function () {
         this.from_content_execute = 100;
       }),
     );
     const job = initJob(worker);
     const result = await job<number>(
       async (data: unknown): Promise<number> => {
-        // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+        // eslint-disable-next-line
         // @ts-ignore
         return data + from_global_context + from_content_execute;
       },
@@ -84,7 +85,7 @@ describe('Worker test', () => {
     const worker = createWorker(setPersistentContext());
     const job = initJob(worker);
 
-    const errorMessage = faker.hacker.phrase();
+    const errorMessage = 'Some great phrase';
 
     try {
       await job(
@@ -100,7 +101,7 @@ describe('Worker test', () => {
   });
 
   it('should be throw correct error message while overlap the persistent context', async () => {
-    const fn = (): void => {
+    const fn = function () {
       this.foo = undefined;
     };
     const worker = createWorker(setPersistentContext(fn));

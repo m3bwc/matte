@@ -1,4 +1,4 @@
-export interface TaskQueryInterface<T = {}, U = {}> {
+export interface TaskQueryInterface<T = Record<string, unknown>, U = Record<string, unknown>> {
   ctx?: T;
   data?: U;
 }
@@ -12,9 +12,9 @@ export enum TaskPriority {
 }
 
 export type TTask = {
-  handler: Function;
-  resolve?: Function;
+  handler: (...args: unknown[]) => unknown;
+  resolve?: (value?: any) => unknown;
   callback?: (err: Error, result?: unknown) => void;
-  reject?: Function;
+  reject?: (reason?: any) => unknown;
   config?: TaskQueryInterface;
 };
