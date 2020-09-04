@@ -19,7 +19,7 @@ export type TWorkerConfig = {
   executable?: string;
 };
 
-export type TQueueImplementation = new () => WorkerPoolQueueInterface<TTask>;
+export type TQueueImplementation = new () => WorkerPoolQueueInterface<IQueuedTask>;
 
 export type TPoolConfig = {
   queueType?: QueueType;

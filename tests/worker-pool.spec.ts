@@ -22,14 +22,14 @@ const sum = (array: number[]) => {
   return total;
 };
 
-class ArrayedQueue implements WorkerPoolQueueInterface<TTask> {
+class ArrayedQueue implements WorkerPoolQueueInterface<IQueuedTask> {
   private queue: IQueuedTask[];
   constructor() {
     this.queue = [];
   }
 
-  add(task: TTask, ...args: unknown[]): SyncOrAsync<this> {
-    this.queue.push({ task, id: nanoid() });
+  add(task: IQueuedTask, ...args: unknown[]): SyncOrAsync<this> {
+    this.queue.push(task);
     return this;
   }
 
@@ -41,8 +41,8 @@ class ArrayedQueue implements WorkerPoolQueueInterface<TTask> {
     return !Boolean(this.queue.length);
   }
 
-  poll(): SyncOrAsync<TTask> {
-    return this.queue.pop()?.task;
+  poll(): SyncOrAsync<IQueuedTask> {
+    return this.queue.pop();
   }
 }
 
