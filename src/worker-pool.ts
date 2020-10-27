@@ -23,6 +23,9 @@ import { nanoid } from 'nanoid';
 import { isFunction, makeWorker } from './utils';
 import TypedArray = NodeJS.TypedArray;
 
+const kTickEvent = Symbol('kTickEvent');
+const kTaskAdded = Symbol('kTaskAdded');
+
 export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
   private maxWorkers: number;
   private workerConfig: TWorkerConfig;
@@ -65,6 +68,8 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
   constructor(config: TPoolConfig = {}) {
     super();
     this.refresh(config);
+    this.on(kTaskAdded, () => this.tick());
+    this.setMaxListeners(0);
   }
 
   private upWorkers(): void {
@@ -74,28 +79,25 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
       worker.once(
         'online',
         ((index) => (): void => {
-          setImmediate(() => {
-            this.workers[index].status = WorkerState.WORKER_STATE_ONLINE;
-            if (
-              this.workers.length === this.maxWorkers &&
-              this.workers.every((worker) => worker.status === WorkerState.WORKER_STATE_ONLINE)
-            ) {
-              this.emit('ready');
-            }
-          });
+          this.workers[index].status = WorkerState.WORKER_STATE_ONLINE;
+          this.emit(kTickEvent);
+          if (
+            this.workers.length === this.maxWorkers &&
+            this.workers.every((worker) => worker.status === WorkerState.WORKER_STATE_ONLINE)
+          ) {
+            this.emit('ready');
+          }
         })(position),
       );
       worker.once(
         'error',
         ((index) => (error: Error): void => {
-          setImmediate(() => {
-            this.workers[index].status = WorkerState.WORKER_STATE_OFF;
-            this.workers[index].worker.removeAllListeners();
-            this.emit('error', error);
-            if (this.workers.every((w) => w.status === WorkerState.WORKER_STATE_OFF)) {
-              this.terminate();
-            }
-          });
+          this.workers[index].status = WorkerState.WORKER_STATE_OFF;
+          this.workers[index].worker.removeAllListeners();
+          this.emit('error', error);
+          if (this.workers.every((w) => w.status === WorkerState.WORKER_STATE_OFF)) {
+            this.terminate();
+          }
         })(position),
       );
 
@@ -112,7 +114,8 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
           if (this.workers[index].jobs < this.maxJobsInWorker) {
             this.workers[index].status = WorkerState.WORKER_STATE_ONLINE;
           }
-          setImmediate(() => this.tick());
+
+          this.emit(kTickEvent);
 
           if (error) {
             const e = new Error(error.message);
@@ -178,17 +181,14 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
     deadWorker.worker = this.make();
     deadWorker.status = WorkerState.WORKER_STATE_SPAWNING;
     deadWorker.worker.once('online', () => {
-      setImmediate(() => {
-        deadWorker.status = WorkerState.WORKER_STATE_ONLINE;
-        deadWorker.worker.removeAllListeners();
-      });
+      deadWorker.status = WorkerState.WORKER_STATE_ONLINE;
+      deadWorker.worker.removeAllListeners();
+      this.emit(kTickEvent);
     });
     deadWorker.worker.once('error', (error: Error) => {
-      setImmediate(() => {
-        deadWorker.status = WorkerState.WORKER_STATE_OFF;
-        deadWorker.worker.removeAllListeners();
-        this.emit('error', error);
-      });
+      deadWorker.status = WorkerState.WORKER_STATE_OFF;
+      deadWorker.worker.removeAllListeners();
+      this.emit('error', error);
     });
   }
 
@@ -213,12 +213,7 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
       (worker) => worker.status === WorkerState.WORKER_STATE_ONLINE,
     );
     if (!availableWorker) {
-      if (this.tickTimeout) {
-        clearTimeout(this.tickTimeout);
-      }
-      this.tickTimeout = setTimeout(() => {
-        this.tick();
-      }, 10);
+      this.once(kTickEvent, () => this.tick());
       return;
     }
 
@@ -252,7 +247,7 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
         this.workers.map(
           () =>
             new Promise((resolve, reject) =>
-              this.shadowAdd({
+              this.runTask({
                 resolve,
                 reject,
                 handler:
@@ -276,14 +271,14 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
     }
   }
 
-  private async shadowAdd(task: TTask, priority: TaskPriority = TaskPriority.LOW): Promise<void> {
+  private async runTask(task: TTask, priority: TaskPriority = TaskPriority.LOW): Promise<void> {
     await this.taskQueue.add({ task, id: nanoid() }, priority);
-    setImmediate(() => this.tick());
+    this.emit(kTaskAdded);
   }
 
   public async add(task: TTask, priority: TaskPriority = TaskPriority.LOW): Promise<void> {
     if (!this.terminated) {
-      return await this.shadowAdd(task, priority);
+      return await this.runTask(task, priority);
     }
     throw new Error('Current Worker pool is terminated');
   }
