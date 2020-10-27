@@ -35,7 +35,6 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
   private persistentContext: Record<string, any> | any[];
   private terminated = true;
   private terminateFn: () => void;
-  private tickTimeout;
   private maxJobsInWorker: number;
   private jobsInProgress = new Map<string, TTask>();
 
