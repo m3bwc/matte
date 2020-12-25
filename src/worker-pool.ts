@@ -22,9 +22,12 @@ import { deserialize, serialize } from 'v8';
 import { nanoid } from 'nanoid';
 import { isFunction, makeWorker } from './utils';
 import TypedArray = NodeJS.TypedArray;
+import { promisify } from 'util';
 
 const kTickEvent = Symbol('kTickEvent');
 const kTaskAdded = Symbol('kTaskAdded');
+
+const sleep = promisify(setTimeout);
 
 export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
   private maxWorkers: number;
@@ -156,14 +159,16 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
   }
 
   private setUpWorkerConfig(worker: TWorkerConfig): void {
-    this.workerConfig = worker || {
-      timeout: 3000,
-      resourceLimits: {
+    this.workerConfig = {
+      timeout: worker?.timeout || 3000,
+      resourceLimits: worker?.resourceLimits || {
         maxOldGenerationSizeMb: 64,
         maxYoungGenerationSizeMb: 16,
         codeRangeSizeMb: 8,
       },
-      executable: readFileSync(join(__dirname, `worker${extname(__filename)}`)).toString('utf8'),
+      executable:
+        worker?.executable ||
+        readFileSync(join(__dirname, `worker${extname(__filename)}`)).toString('utf8'),
     };
   }
 
@@ -172,7 +177,9 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
       this.taskQueue = new queueImpl();
     } else {
       this.taskQueue =
-        queueType === QueueType.FIFO ? new Queue<IQueuedTask>() : new PriorityQueue<IQueuedTask>();
+        queueType === QueueType.PRIORITY
+          ? new PriorityQueue<IQueuedTask>()
+          : new Queue<IQueuedTask>();
     }
   }
 
@@ -233,7 +240,7 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
     } catch (e) {
       availableWorker.status = WorkerState.WORKER_STATE_OFF;
       queueItem.task.reject(e);
-      setImmediate(() => this.tick());
+      this.emit(kTickEvent);
     }
   }
 
@@ -263,9 +270,7 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
       this.workers = [];
       await this.taskQueue.clear();
     } else {
-      await new Promise((resolve) => {
-        setTimeout(() => resolve(), 50);
-      });
+      await sleep(50);
       return this.terminate();
     }
   }
