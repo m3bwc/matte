@@ -221,13 +221,15 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
     if (!availableWorker) {
       this.once(kTickEvent, () => this.tick());
       return;
+    } else {
+      availableWorker.jobs += 1;
+      if (availableWorker.jobs === this.maxJobsInWorker) {
+        availableWorker.status = WorkerState.WORKER_STATE_BUSY;
+      }
     }
 
     const queueItem = await this.taskQueue.poll();
-    availableWorker.jobs += 1;
-    if (availableWorker.jobs === this.maxJobsInWorker) {
-      availableWorker.status = WorkerState.WORKER_STATE_BUSY;
-    }
+
     try {
       this.jobsInProgress.set(queueItem.id, queueItem.task);
       availableWorker.worker.postMessage(
