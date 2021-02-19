@@ -11,6 +11,7 @@ import {
   TWorkerWrapper,
   WorkerPoolInterface,
   WorkerPoolQueueInterface,
+  WorkerResponseErrorInterface,
   WorkerResponseInterface,
   WorkerState,
 } from './types';
@@ -108,8 +109,6 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
         ((index) => (message: TypedArray) => {
           const { error, data, id } = deserialize(message) as WorkerResponseInterface<unknown>;
           const task = this.jobsInProgress.get(id);
-          const usePromise = isFunction(task.resolve) && isFunction(task.reject);
-          const callbackExists = isFunction(task.callback);
 
           const jobs = this.workers[index].jobs - 1;
           this.workers[index].jobs = jobs < 0 ? 0 : jobs;
@@ -120,25 +119,33 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
           this.emit(kTickEvent);
 
           if (error) {
-            const e = new Error(error.message);
-            if (usePromise) {
-              task.reject(error);
-            } else {
-              if (callbackExists) {
-                task.callback(e);
-              } else {
-                throw e;
-              }
-            }
+            this.returnError(task, error);
             return;
           }
-          return usePromise
-            ? task.resolve(data)
-            : callbackExists
-            ? task.callback(null, data)
-            : undefined;
+          return this.returnData(task, data);
         })(position),
       );
+    }
+  }
+
+  private returnData(task: TTask, data: unknown): void {
+    const usePromise = isFunction(task.resolve) && isFunction(task.reject);
+    const callbackExists = isFunction(task.callback);
+    return usePromise ? task.resolve(data) : callbackExists ? task.callback(null, data) : undefined;
+  }
+
+  private returnError(task: TTask, error: Error | WorkerResponseErrorInterface): void | never {
+    const usePromise = isFunction(task.resolve) && isFunction(task.reject);
+    const callbackExists = isFunction(task.callback);
+    const e = new Error(error.message);
+    if (usePromise) {
+      task.reject(error);
+    } else {
+      if (callbackExists) {
+        task.callback(e);
+      } else {
+        throw e;
+      }
     }
   }
 
@@ -161,10 +168,10 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
   private setUpWorkerConfig(worker: TWorkerConfig): void {
     this.workerConfig = {
       timeout: worker?.timeout || 3000,
-      resourceLimits: worker?.resourceLimits || {
-        maxOldGenerationSizeMb: 64,
-        maxYoungGenerationSizeMb: 16,
-        codeRangeSizeMb: 8,
+      resourceLimits: {
+        maxOldGenerationSizeMb: worker?.resourceLimits?.maxOldGenerationSizeMb || 64,
+        maxYoungGenerationSizeMb: worker?.resourceLimits?.maxYoungGenerationSizeMb || 16,
+        codeRangeSizeMb: worker?.resourceLimits?.codeRangeSizeMb || 8,
       },
       executable:
         worker?.executable ||
@@ -218,14 +225,14 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
     const availableWorker = this.workers.find(
       (worker) => worker.status === WorkerState.WORKER_STATE_ONLINE,
     );
-    if (!availableWorker) {
-      this.once(kTickEvent, () => this.tick());
-      return;
-    } else {
+    if (availableWorker) {
       availableWorker.jobs += 1;
       if (availableWorker.jobs === this.maxJobsInWorker) {
         availableWorker.status = WorkerState.WORKER_STATE_BUSY;
       }
+    } else {
+      this.once(kTickEvent, () => this.tick());
+      return;
     }
 
     const queueItem = await this.taskQueue.poll();
@@ -241,7 +248,7 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
       );
     } catch (e) {
       availableWorker.status = WorkerState.WORKER_STATE_OFF;
-      queueItem.task.reject(e);
+      this.returnError(queueItem.task, e);
       this.emit(kTickEvent);
     }
   }
