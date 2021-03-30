@@ -119,6 +119,7 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
           this.emit(kTickEvent);
 
           if (error) {
+            this.jobsInProgress.delete(id);
             this.returnError(task, error);
             return;
           }
