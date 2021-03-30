@@ -122,7 +122,8 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
             this.returnError(task, error);
             return;
           }
-          return this.returnData(task, data);
+          this.returnData(task, data);
+          this.jobsInProgress.delete(id);
         })(position),
       );
     }
