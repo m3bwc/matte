@@ -20,6 +20,7 @@ const computeIdVariable = crypto.randomBytes(16).toString('hex');
 const context = {
   console,
   require,
+  Buffer,
   setTimeout,
   clearTimeout,
   setInterval,
