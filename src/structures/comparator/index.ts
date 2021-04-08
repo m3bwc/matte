@@ -1,7 +1,8 @@
+export type CompareFunction = (a: unknown, b: unknown) => number;
 export default class Comparator {
-  private compare: Function;
+  private compare: CompareFunction;
 
-  constructor(compareFunction: Function) {
+  constructor(compareFunction: CompareFunction) {
     this.compare = compareFunction || Comparator.defaultCompareFunction;
   }
 

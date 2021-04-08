@@ -1,10 +1,11 @@
 import LinkedList from '../linked-list/linked-list';
-import { WorkerPoolQueueInterface } from '../../types/queue.type';
+import { WorkerPoolQueueInterface, IQueuedTask } from '../../types/';
+import { CompareFunction } from '../comparator';
 
-export class Queue<T> implements WorkerPoolQueueInterface<T> {
+export class Queue<T extends IQueuedTask> implements WorkerPoolQueueInterface<T> {
   linkedList: LinkedList<T>;
-  constructor() {
-    this.linkedList = new LinkedList<T>();
+  constructor(compareFunction?: CompareFunction) {
+    this.linkedList = new LinkedList<T>(compareFunction || this.compareValue);
   }
 
   isEmpty(): boolean {
@@ -36,5 +37,17 @@ export class Queue<T> implements WorkerPoolQueueInterface<T> {
 
   clear(): void {
     this.linkedList = new LinkedList();
+  }
+
+  remove(item: T): this {
+    this.linkedList.delete(item);
+    return this;
+  }
+
+  compareValue(a: T, b: T): number {
+    if (a.id === b.id) {
+      return 0;
+    }
+    return a.id < b.id ? -1 : 1;
   }
 }

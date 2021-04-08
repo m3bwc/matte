@@ -1,8 +1,10 @@
 import MinHeap from '../heap/min-heap';
 import Comparator from '../comparator';
-import { WorkerPoolQueueInterface } from 'types/queue.type';
+import { WorkerPoolQueueInterface, IQueuedTask } from '../../types/';
 
-export class PriorityQueue<T> extends MinHeap<T> implements WorkerPoolQueueInterface<T> {
+export class PriorityQueue<T extends IQueuedTask>
+  extends MinHeap<T>
+  implements WorkerPoolQueueInterface<T> {
   private priorities: Map<T, number>;
 
   constructor() {
@@ -17,14 +19,14 @@ export class PriorityQueue<T> extends MinHeap<T> implements WorkerPoolQueueInter
     return this;
   }
 
-  remove(item: T, customFindingComparator: Comparator): this {
-    super.remove(item, customFindingComparator);
+  remove(item: T): this {
+    super.remove(item, new Comparator(this.compareValue));
     this.priorities.delete(item);
     return this;
   }
 
   changePriority(item: T, priority: number): this {
-    this.remove(item, new Comparator(this.compareValue));
+    this.remove(item);
     this.add(item, priority);
     return this;
   }
@@ -45,10 +47,10 @@ export class PriorityQueue<T> extends MinHeap<T> implements WorkerPoolQueueInter
   }
 
   compareValue(a: T, b: T): number {
-    if (a === b) {
+    if (a.id === b.id) {
       return 0;
     }
-    return a < b ? -1 : 1;
+    return a.id < b.id ? -1 : 1;
   }
 
   clear(): void {

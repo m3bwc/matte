@@ -1,4 +1,5 @@
-import Comparator from '../comparator';
+import { IQueuedTask } from '../../types';
+import Comparator, { CompareFunction } from '../comparator';
 import LinkedListNode from './linked-list-node';
 
 export interface LinkedListFindInterface<T> {
@@ -6,12 +7,12 @@ export interface LinkedListFindInterface<T> {
   callback: Function;
 }
 
-export default class LinkedList<T> {
+export default class LinkedList<T extends IQueuedTask> {
   public head: LinkedListNode<T>;
   public tail: LinkedListNode<T>;
   protected compare: Comparator;
 
-  constructor(comparatorFunction?: Function) {
+  constructor(comparatorFunction?: CompareFunction) {
     this.head = null;
     this.tail = null;
 
@@ -141,7 +142,7 @@ export default class LinkedList<T> {
   }
 
   fromArray(values: T[]): this {
-    values.forEach(value => this.append(value));
+    values.forEach((value) => this.append(value));
 
     return this;
   }
@@ -160,7 +161,7 @@ export default class LinkedList<T> {
 
   toString(callback: Function): string {
     return this.toArray()
-      .map(node => node.toString(callback))
+      .map((node) => node.toString(callback))
       .toString();
   }
 

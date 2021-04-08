@@ -36,4 +36,5 @@ export interface WorkerPoolInterface {
   terminate(): Promise<void>;
   add(task: TTask): void;
   add(task: TTask, priority?: TaskPriority): void;
+  remove(id: string): void;
 }

@@ -6,4 +6,5 @@ export interface WorkerPoolQueueInterface<T> {
   isEmpty(): SyncOrAsync<boolean>;
   poll(): SyncOrAsync<T>;
   toString?(callback: (...args: unknown[]) => unknown): SyncOrAsync<string>;
+  remove?(item: T): SyncOrAsync<this>;
 }

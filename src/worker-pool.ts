@@ -42,7 +42,7 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
   private maxJobsInWorker: number;
   private jobsInProgress = new Map<string, TTask>();
 
-  public async refresh(config: TPoolConfig = {}) {
+  public async refresh(config: TPoolConfig = {}): Promise<void> {
     if (!this.terminated) {
       await this.terminate();
     }
@@ -286,16 +286,24 @@ export class WorkerPool extends EventEmitter implements WorkerPoolInterface {
     }
   }
 
-  private async runTask(task: TTask, priority: TaskPriority = TaskPriority.LOW): Promise<void> {
-    await this.taskQueue.add({ task, id: nanoid() }, priority);
+  private async runTask(task: TTask, priority: TaskPriority = TaskPriority.LOW): Promise<string> {
+    const id = nanoid();
+    await this.taskQueue.add({ task, id }, priority);
     this.emit(kTaskAdded);
+    return id;
   }
 
-  public async add(task: TTask, priority: TaskPriority = TaskPriority.LOW): Promise<void> {
+  public async add(task: TTask, priority: TaskPriority = TaskPriority.LOW): Promise<string> {
     if (!this.terminated) {
       return await this.runTask(task, priority);
     }
     throw new Error('Current Worker pool is terminated');
+  }
+
+  public async remove(id: string): Promise<void> {
+    if (typeof this.taskQueue.remove === 'function') {
+      this.taskQueue.remove({ id, task: undefined });
+    }
   }
 
   private setUpTerminateFn(terminateFn: () => void): void {
