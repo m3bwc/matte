@@ -2,7 +2,6 @@
 const { parentPort } = require('worker_threads');
 const { createContext, runInContext } = require('vm');
 const { deserialize, serialize } = require('v8');
-const crypto = require('crypto');
 
 const isObject = (obj) => {
   const type = typeof obj;
