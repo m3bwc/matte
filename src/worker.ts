@@ -13,9 +13,6 @@ const isObject = (obj) => {
 // @ts-ignore
 const persistentContext = __persistent_context_data__;
 
-// declare context property where we going to compute your messages
-const computeIdVariable = crypto.randomBytes(16).toString('hex');
-
 // declare object for vmContext
 const context = {
   console,
@@ -26,7 +23,6 @@ const context = {
   setInterval,
   clearInterval,
   setImmediate,
-  computeIdVariable: undefined,
 };
 
 // we going to initialize our worker persistent context which we want used to compute your messages
@@ -76,11 +72,15 @@ parentPort.on('message', async (message) => {
       runInContext(`(${contextInitialize.toString()})(${stringifiedContext})`, vmContext);
     }
 
+    if (!response.id) {
+      throw new Error('Response id is not defined');
+    }
+
     const script = `try {
-      this['${computeIdVariable}'] = (${handler})(${JSON.stringify(config.data)});
-     } catch (e) { this['${computeIdVariable}'] = e; }`;
+      this['${response.id}'] = (${handler})(${JSON.stringify(config.data)});
+     } catch (e) { this['${response.id}'] = e; }`;
     runInContext(script, vmContext, { displayErrors: true });
-    response.data = await vmContext[computeIdVariable];
+    response.data = await vmContext[response.id];
     if (response.data instanceof Error) {
       throw response.data;
     }
@@ -89,7 +89,7 @@ parentPort.on('message', async (message) => {
       runInContext(`(${clearContext.toString()})(${stringifiedContext})`, vmContext);
     }
 
-    Reflect.deleteProperty(context, computeIdVariable);
+    Reflect.deleteProperty(context, response.id);
   } catch (e) {
     response.error = e;
   }

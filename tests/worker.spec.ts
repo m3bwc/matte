@@ -4,6 +4,7 @@ import { deserialize, serialize } from 'v8';
 import TypedArray = NodeJS.TypedArray;
 import { join } from 'path';
 import { WorkerResponseInterface } from '../src/types';
+import { nanoid } from 'nanoid';
 
 type Resolve<T> = (value?: T | PromiseLike<T>) => void;
 type Reject = (reason?: unknown) => void;
@@ -47,6 +48,7 @@ const initJob = (worker: Worker) => <T>(
             ctx,
             data,
           },
+          id: nanoid(),
         }),
       );
     });
