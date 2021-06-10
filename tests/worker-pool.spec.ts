@@ -1,159 +1,182 @@
-import { IQueuedTask, SyncOrAsync, TTask, WorkerPool, WorkerPoolQueueInterface } from '../src';
-import { QueueType, TaskPriority } from '../src/types';
-import { cpus } from 'os';
-import { nanoid } from 'nanoid';
+import { WorkerPool } from '../src';
+import { Err, Ok, Result } from 'ts-results';
 
 const range = (min: number, max: number) => {
-  const array: number[] = [];
+  const array: Result<number, Error>[] = [];
   const lower = Math.min(min, max);
   const upper = Math.max(min, max) - 1;
 
   for (let i = lower; i <= upper; i++) {
-    array.push(i);
+    array.push(Ok(i));
   }
   return array;
 };
 
-const sum = (array: number[]) => {
+const sum = (array: Result<number, Error>[]) => {
   let total = 0;
   for (const i in array) {
-    total = total + array[i];
+    total = total + (array[i].val as number);
   }
   return total;
 };
 
-class ArrayedQueue implements WorkerPoolQueueInterface<IQueuedTask> {
-  private queue: IQueuedTask[];
-  constructor() {
-    this.queue = [];
-  }
-
-  add(task: IQueuedTask, ...args: unknown[]): SyncOrAsync<this> {
-    this.queue.push(task);
-    return this;
-  }
-
-  clear(): SyncOrAsync<void> {
-    this.queue = [];
-  }
-
-  isEmpty(): SyncOrAsync<boolean> {
-    return !Boolean(this.queue.length);
-  }
-
-  poll(): SyncOrAsync<IQueuedTask> {
-    return this.queue.pop();
-  }
-}
-
 describe('Worker pool', () => {
-  let pool: WorkerPool;
-  let multipleItemsPool: WorkerPool;
+  const pool = WorkerPool.of<any, any>();
+  const multipleItemsPool = WorkerPool.of<any, any>();
 
   beforeAll(async () => {
-    await Promise.all([
-      new Promise((resolve) => {
-        pool = new WorkerPool({
-          queueType: QueueType.FIFO,
-          persistentContext: { foo: 'var' },
-          persistentContextFn: function (context) {
-            this.bar = context;
+    await pool.init({
+      context: { foo: 'var' },
+      fn: {
+        context: function (context) {
+          this.bar = context;
+        },
+        terminate: function () {
+          return Ok.EMPTY;
+        },
+      },
+    });
+    await multipleItemsPool.init({
+      context: { foo: 'var' },
+      workers: {
+        jobs: 4,
+      },
+      fn: {
+        context: function (context) {
+          this.bar = context;
+        },
+        terminate: function () {
+          return Ok.EMPTY;
+        },
+      },
+    });
+  });
+
+  it('should be process promise data', async () => {
+    const result = await new Promise<Result<number, Error>>((resolve, reject) => {
+      pool
+        .process({
+          promise: {
+            resolve,
+            reject,
           },
+          handler: (data) => (signal) => {
+            return 1 + 1;
+          },
+        })
+        .mapErr((err) => {
+          console.log(err);
+          reject(Err(err));
         });
-        pool.once('ready', resolve);
-      }),
-      new Promise((resolve) => {
-        multipleItemsPool = new WorkerPool({
-          maxJobsInWorker: cpus().length,
-          queueType: QueueType.CUSTOM,
-          queueImpl: ArrayedQueue,
+    });
+    expect(result.val).toEqual(2);
+  });
+
+  it('should be process promise with data', async () => {
+    const result = await new Promise<Result<number, Error>>((resolve, reject) => {
+      pool
+        .process({
+          promise: {
+            resolve,
+            reject,
+          },
+          data: { foo: 'bar' },
+          handler: (data) => (signal) => {
+            return data.foo;
+          },
+        })
+        .mapErr((err) => {
+          console.log(err);
+          reject(Err(err));
         });
-        pool.once('ready', resolve);
-      }),
-    ]);
+    });
+    expect(result.val).toEqual('bar');
+  });
+
+  it('should be process callback', async () => {
+    const result = await new Promise<any>((resolve, reject) => {
+      pool
+        .process({
+          callback: (res) => {
+            res.map(resolve).mapErr(reject);
+          },
+          data: { foo: 'bar' },
+          handler: (data) => (signal) => {
+            return data.foo;
+          },
+        })
+        .unwrap();
+    });
+    expect(result).toEqual('bar');
+  });
+
+  it('should be process callback error', async () => {
+    const result = await new Promise<Error>((resolve, reject) => {
+      pool
+        .process({
+          callback: (result) => {
+            result.map(reject).mapErr(resolve);
+            return Ok.EMPTY;
+          },
+          data: { foo: 'bar' },
+          handler: () => () => {
+            throw new Error('TestError');
+          },
+        })
+        .unwrap();
+    });
+    expect(result.message).toEqual('TestError');
+  });
+
+  it('should be catch abort signal', async () => {
+    const result = await new Promise<boolean>((resolve, reject) => {
+      const id = pool
+        .process({
+          callback: (result) => {
+            result.map(() => resolve(true)).mapErr(reject);
+          },
+          handler: () => (signal) => {
+            return new Promise((resolve, reject) => {
+              const timeout = setTimeout(() => {
+                reject(new Error('TimeouError'));
+              }, 150);
+              signal.addEventListener('abort', () => {
+                clearTimeout(timeout);
+                resolve(void 0);
+              });
+            });
+          },
+        })
+        .unwrap();
+      setTimeout(() => {
+        pool.abort(id);
+      }, 10);
+    });
+    expect(result).toBeTruthy();
   });
 
   it('should process multiple tasks', async () => {
     const rangeLength = 100;
-    const result = (await Promise.all(
+    const result = await Promise.all(
       new Array(rangeLength).fill(null).map(
         (_, data) =>
-          new Promise((resolve, reject) => {
-            multipleItemsPool.add({
-              handler: (position) => position,
-              resolve,
-              reject,
-              config: {
-                data,
+          new Promise<Result<number, Error>>((resolve, reject) => {
+            multipleItemsPool.process({
+              handler: (position) => () => position,
+              promise: {
+                resolve,
+                reject,
               },
+              data,
             });
           }),
       ),
-    )) as number[];
+    );
 
     expect(sum(result)).toBe(sum(range(0, rangeLength)));
   });
 
-  it('should be process task', async () => {
-    const result = await new Promise((resolve, reject) => {
-      pool.add({
-        resolve,
-        reject,
-        handler: () => {
-          return 1 + 1;
-        },
-      });
-    });
-    expect(result).toEqual(2);
-  });
-
-  it('should be process task with callback', async () => {
-    const result = await new Promise((resolve, reject) => {
-      pool.add({
-        callback: (err, data) => {
-          if (err) reject(err);
-          resolve(data);
-        },
-        handler: () => {
-          return 1 + 1;
-        },
-      });
-    });
-    expect(result).toEqual(2);
-  });
-
-  it('should be catch rejected error', async () => {
-    const result = await new Promise((resolve, reject) => {
-      pool.add(
-        {
-          resolve,
-          reject,
-          handler: () => {
-            throw new Error('some');
-          },
-        },
-        TaskPriority.CRITICAL,
-      );
-    });
-    expect(result).toBeDefined();
-    expect(result).toHaveProperty('message');
-    expect(result['message']).toEqual('some');
-  });
-
-  it('should be process task with persistence context fn and data', async () => {
-    const result = await new Promise((resolve, reject) => {
-      pool.add({
-        resolve,
-        reject,
-        handler: function () {
-          return this.bar.foo;
-        },
-      });
-    });
-    expect(result).toEqual('var');
-  });
-
   afterAll(async () => {
-    await Promise.all([pool.terminate(), multipleItemsPool.terminate()]);
+    await Promise.all([pool.terminate()]);
   });
 });
