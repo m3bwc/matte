@@ -267,7 +267,6 @@ export class WorkerPool<P, V> extends EventEmitter {
       this.processing.delete(id);
 
       this.emit(kTickEvent);
-      console.log('handleWorkerMessage', id, error, data)
       this.sendMessage(payload, error ? Err(error) : Ok(data));
     };
   }
