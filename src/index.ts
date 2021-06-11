@@ -42,7 +42,7 @@ type TaskTimeout = {
 interface TaskPayload<P, V> {
   context?: unknown;
   data?: P;
-  handler: (data: P & { id: TaskIdentity }) => (signal: AbortSignal) => V;
+  handler: (data: P & { id: TaskIdentity }, signal?: AbortSignal) => V | Promise<V>;
   callback?: (data: Result<Maybe<V>, Error>) => void;
   promise?: {
     resolve: (value?: Ok<V> | PromiseLike<Ok<V>>) => void;

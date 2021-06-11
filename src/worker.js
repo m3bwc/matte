@@ -73,7 +73,7 @@ parentPort.on('message', async (message) => {
       const script = `try {
       this['${response.id}'] = (${handler})(${JSON.stringify(
         data,
-      )})(this.controllers.get('${id}').signal);
+      )}, this.controllers.get('${id}').signal);
      } catch (e) { this['${response.id}'] = e; }`;
       runInContext(script, vmContext, { displayErrors: true });
       response.data = await vmContext[response.id];
