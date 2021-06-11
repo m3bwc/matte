@@ -88,18 +88,18 @@ export type WorkerPoolContext = {
   workers?: WorkersConfig;
 };
 
-export class WorkerPool<P, V> extends EventEmitter {
+export class WorkerPool extends EventEmitter {
   private terminated = false;
   private timeout: number;
   private maxJobs: number;
-  private taskQueue = new Map<TaskIdentity, TaskPayload<P, V>>();
-  private processing = new Map<TaskIdentity, TaskPayload<P, V> & TaskTimeout>();
+  private taskQueue = new Map<TaskIdentity, TaskPayload<unknown, unknown>>();
+  private processing = new Map<TaskIdentity, TaskPayload<unknown, unknown> & TaskTimeout>();
   private workers: WorkerNode[] = [];
   private logger: WorkerPoolLogger;
   private workersConfig: WorkersConfig;
   private workerScript: string;
 
-  private constructor() {
+  constructor() {
     super();
     this.on(kTaskAdded, () => this.tick());
     this.setMaxListeners(0);
@@ -170,7 +170,7 @@ export class WorkerPool<P, V> extends EventEmitter {
     });
   }
 
-  public process(task: TaskPayload<P, V>): Result<string, Error> {
+  public process<P,V>(task: TaskPayload<P, V>): Result<string, Error> {
     return this.isntTerminated.map(() => {
       const id = nanoid();
       this.taskQueue.set(id, task);
@@ -249,7 +249,7 @@ export class WorkerPool<P, V> extends EventEmitter {
   }
 
   private handleWorkerMessage(index: number): (...args: unknown[]) => void {
-    return (message: WorkerNodeResponse<V>): void => {
+    return (message: WorkerNodeResponse<unknown>): void => {
       const { error, data, id } = message;
 
       const jobs = this.workers[index].jobs - 1;
@@ -290,7 +290,7 @@ export class WorkerPool<P, V> extends EventEmitter {
         }
         const [id, payload] = this.taskQueue[Symbol.iterator]().next().value as [
           TaskIdentity,
-          TaskPayload<P, V>,
+          TaskPayload<unknown, unknown>,
         ];
         const timeout = setTimeout(() => {
           this.abort(id).andThen(() =>
@@ -324,8 +324,8 @@ export class WorkerPool<P, V> extends EventEmitter {
   }
 
   private sendMessage(
-    payload: TaskPayload<P, V>,
-    data: Result<Maybe<V>, Error>,
+    payload: TaskPayload<unknown, unknown>,
+    data: Result<Maybe<unknown>, Error>,
   ): Result<void, Error> {
     try {
       if (payload.callback) {
@@ -338,7 +338,7 @@ export class WorkerPool<P, V> extends EventEmitter {
         if (data.err) {
           payload.promise.reject(data);
         } else {
-          payload.promise.resolve(data as Ok<V>);
+          payload.promise.resolve(data as Ok<unknown>);
         }
       }
       return Ok.EMPTY;
