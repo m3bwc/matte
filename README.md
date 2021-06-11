@@ -5,6 +5,19 @@ Matte is an implementation a thread pool pattern for node.js
 ![Thead pool description image](https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/Thread_pool.svg/800px-Thread_pool.svg.png)
 
 As we know Node.js is asynchronous but some features stay synchronous. The matte solution can help you to avoid blocking your main thread and compute sync things in another Event loop.
+## Features
+- Easy to use
+- Task timeouts
+- Cancellable tasks
+- Autorestart worker when they fall
+- Can be filled by your inline functions
+- All your handlers are covered by VM context
+- You can parallel tasks in one worker or workers group
+- Leverage all CPU cores
+- Async workers
+- Very small package
+- ts-results compatible
+- rxjs compatible
 
 ## Built with
 
@@ -13,103 +26,13 @@ As we know Node.js is asynchronous but some features stay synchronous. The matte
 
 ## Prerequisites
 
-- Node.js 11.12.0+
+- Node.js 12.x+
 - [Typescript](https://www.typescriptlang.org/) knowledge
 - [Conventional commit](https://www.conventionalcommits.org/) knowledge
 
 ## Installation
 
 `npm install @datapain/matte`
-
-## Usage
-
-Use Worker Pool by promise handling:
-```typescript
-import { WorkerPool, QueueType } from '@datapain/matte';
-
-const pool = new WorkerPool({
-  queueType: QueueType.PRIORITY, // or QueueType.FIFO; or your custom QueueType which implement WorkerPoolQueueInterface; by default is QueueType.PRIORITY
-  maxWorkers: 4, // by default used cpus length
-  worker: {
-    resourceLimits: { // by default used native worker limits
-      maxOldGenerationSizeMb: 64,
-      maxYoungGenerationSizeMb: 16,
-      codeRangeSizeMb: 4,
-    },
-    timeout: 1000, // by default is 3000 ms
-    executable: './path/to/your/Worker-file', // by default used matte implementation
-  },
-  persistentContextFn: () => {
-    this.GLOBAL_CONTEXT = 'MATTE IS';
-  },
-});
-
-new Promise((resolve, reject) => pool.add({
-  resolve,
-  reject,
-  handler: (data) => GLOBAL_CONTEXT + MESSAGE_CONTEXT + data,
-  config: {
-    data: 'AWESOME',
-    ctx: {
-      MESSAGE_CONTEXT: ' ',
-    }
-  }
-}));
-
-```
-
-Also, you can use it with the callback:
-```typescript
-import { WorkerPool, QueueType } from '@datapain/matte';
-
-const pool = new WorkerPool({
-  queueType: QueueType.PRIORITY, // or QueueType.FIFO; or your custom QueueType which implement WorkerPoolQueueInterface; by default is QueueType.PRIORITY
-  maxWorkers: 4, // by default used cpus length
-  worker: {
-    resourceLimits: { // by default used native worker limits
-      maxOldGenerationSizeMb: 64,
-      maxYoungGenerationSizeMb: 16,
-      codeRangeSizeMb: 4,
-    },
-    timeout: 1000, // by default is 3000 ms
-    executable: './path/to/your/Worker-file', // by default used matte implementation
-  },
-  persistentContextFn: () => {
-    this.GLOBAL_CONTEXT = 'MATTE IS';
-  },
-});
-
-new Promise((resolve, reject) => pool.add({
-  callback: (err, data) => {
-    if(err) reject(err);
-    resolve(data);
-  },
-  handler: (data) => GLOBAL_CONTEXT + MESSAGE_CONTEXT + data,
-  config: {
-    data: 'AWESOME',
-    ctx: {
-      MESSAGE_CONTEXT: ' ',
-    }
-  }
-}));
-
-```
-
-finally, the simple way:
-```typescript
-import { WorkerPool, TaskPriority } from '@datapain/matte';
-import fetch from 'node-fetch'
-
-const pool = new WorkerPool();
-pool.add({
-  callback: (err, data) => {
-    if(err) console.error(err);
-    console.log(data);
-  },
-  handler: () => fetch('https://github.com/').then(res => res.text()), 
-}, TaskPriority.CRITICAL);
-
-``` 
 
 ## Versioning
 
