@@ -118,7 +118,7 @@ export class WorkerPool extends EventEmitter {
     return new WorkerPool<PT, VT>();
   }
 
-  public init(context: WorkerPoolContext): Promise<Result<void, Error>> {
+  public init(context?: WorkerPoolContext): Promise<Result<void, Error>> {
     return new Promise((resolve, reject) => {
       this.once('ready', () => {
         resolve(Ok.EMPTY);
@@ -133,8 +133,8 @@ export class WorkerPool extends EventEmitter {
       try {
         this.workersConfig = context?.workers;
         this.maxJobs = this.workersConfig?.jobs > 0 ? this.workersConfig?.jobs : 1;
-        this.timeout = context.workers?.timeout || 15000;
-        this.logger = { ...console, verbose: context.verbose ? console.log : () => undefined };
+        this.timeout = context?.workers?.timeout || 1500;
+        this.logger = { ...console, verbose: context?.verbose ? console.log : () => undefined };
 
         const maxWorkers = this.workersConfig?.max > 0 ? this.workersConfig?.max : cpus().length;
         const persistentContextFn = makeFunctionString(context?.fn?.context);
