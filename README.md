@@ -28,7 +28,6 @@ As we know Node.js is asynchronous but some features stay synchronous. The matte
 
 - Node.js 12.x+
 - [Typescript](https://www.typescriptlang.org/) knowledge
-- [Conventional commit](https://www.conventionalcommits.org/) knowledge
 
 ## Installation
 
