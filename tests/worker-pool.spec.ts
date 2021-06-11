@@ -21,8 +21,8 @@ const sum = (array: Result<number, Error>[]) => {
 };
 
 describe('Worker pool', () => {
-  const pool = WorkerPool.of<any, any>();
-  const multipleItemsPool = WorkerPool.of<any, any>();
+  const pool = WorkerPool.of();
+  const multipleItemsPool = WorkerPool.of();
 
   beforeAll(async () => {
     await pool.init({
@@ -55,12 +55,12 @@ describe('Worker pool', () => {
   it('should be process promise data', async () => {
     const result = await new Promise<Result<number, Error>>((resolve, reject) => {
       pool
-        .process({
+        .process<undefined, number>({
           promise: {
             resolve,
             reject,
           },
-          handler: (data) => (signal) => {
+          handler: (data) => {
             return 1 + 1;
           },
         })
@@ -73,15 +73,15 @@ describe('Worker pool', () => {
   });
 
   it('should be process promise with data', async () => {
-    const result = await new Promise<Result<number, Error>>((resolve, reject) => {
+    const result = await new Promise<Result<string, Error>>((resolve, reject) => {
       pool
-        .process({
+        .process<{foo:string}, string>({
           promise: {
             resolve,
             reject,
           },
           data: { foo: 'bar' },
-          handler: (data) => (signal) => {
+          handler: async (data) => {
             return data.foo;
           },
         })
@@ -101,7 +101,7 @@ describe('Worker pool', () => {
             res.map(resolve).mapErr(reject);
           },
           data: { foo: 'bar' },
-          handler: (data) => (signal) => {
+          handler: (data) => {
             return data.foo;
           },
         })
@@ -119,7 +119,7 @@ describe('Worker pool', () => {
             return Ok.EMPTY;
           },
           data: { foo: 'bar' },
-          handler: () => () => {
+          handler: () => {
             throw new Error('TestError');
           },
         })
@@ -135,7 +135,7 @@ describe('Worker pool', () => {
           callback: (result) => {
             result.map(() => resolve(true)).mapErr(reject);
           },
-          handler: () => (signal) => {
+          handler: (_, signal) => {
             return new Promise((resolve, reject) => {
               const timeout = setTimeout(() => {
                 reject(new Error('TimeouError'));
@@ -161,8 +161,8 @@ describe('Worker pool', () => {
       new Array(rangeLength).fill(null).map(
         (_, data) =>
           new Promise<Result<number, Error>>((resolve, reject) => {
-            multipleItemsPool.process({
-              handler: (position) => () => position,
+            multipleItemsPool.process<number, number>({
+              handler: (position) => position,
               promise: {
                 resolve,
                 reject,
@@ -176,7 +176,7 @@ describe('Worker pool', () => {
     expect(sum(result)).toBe(sum(range(0, rangeLength)));
   });
 
-  afterAll(async () => {
-    await Promise.all([pool.terminate()]);
+  afterAll((done) => {
+    pool.terminate().map(() => done());
   });
 });
