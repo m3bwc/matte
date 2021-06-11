@@ -170,7 +170,7 @@ export class WorkerPool extends EventEmitter {
     });
   }
 
-  public process<P,V>(task: TaskPayload<P, V>): Result<string, Error> {
+  public process<P, V>(task: TaskPayload<P, V>): Result<string, Error> {
     return this.isntTerminated.map(() => {
       const id = nanoid();
       this.taskQueue.set(id, task);
@@ -258,18 +258,19 @@ export class WorkerPool extends EventEmitter {
         this.workers[index].status = WorkerStatus.WORKER_STATE_ONLINE;
       }
 
-      const payload = this.processing.get(id);
+      if (this.processing.has(id)) {
+        const payload = this.processing.get(id);
+        if (id && payload && payload.timeout) {
+          clearTimeout(payload.timeout);
+        }
 
-      if (id && payload && payload.timeout) {
-        clearTimeout(payload.timeout);
+        this.processing.delete(id);
+
+        this.emit(kTickEvent);
+        this.sendMessage(payload, error ? Err(error) : Ok(data)).mapErr((e) => {
+          this.emit('error', e);
+        });
       }
-
-      this.processing.delete(id);
-
-      this.emit(kTickEvent);
-      this.sendMessage(payload, error ? Err(error) : Ok(data)).mapErr((e) => {
-        this.emit('error', e);
-      });
     };
   }
 
@@ -295,9 +296,10 @@ export class WorkerPool extends EventEmitter {
           TaskPayload<unknown, unknown>,
         ];
         const timeout = setTimeout(() => {
-          this.abort(id).andThen(() =>
-            this.sendMessage(payload, Err(new Error('TaskTimeoutError'))),
-          );
+          this.abort(id).andThen(() => {
+            this.processing.delete(id);
+            return this.sendMessage(payload, Err(new Error('TaskTimeoutError')));
+          });
         }, this.timeout);
         this.processing.set(id, { ...payload, timeout });
         try {
