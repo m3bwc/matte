@@ -10,9 +10,9 @@
     "build": "tsc -p tsconfig.build.json",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
-    "test": "jest",
+    "test": "jest --forceExit",
     "test:watch": "jest --watch",
-    "test:cov": "jest --coverage"
+    "test:cov": "jest --coverage --forceExit"
   },
   "repository": {
     "type": "git",
