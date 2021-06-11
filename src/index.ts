@@ -114,8 +114,8 @@ export class WorkerPool extends EventEmitter {
     return worker ? Ok(worker) : Err(Error('No free worker'));
   }
 
-  public static of<PT, VT>(): WorkerPool<PT, VT> {
-    return new WorkerPool<PT, VT>();
+  public static of(): WorkerPool {
+    return new WorkerPool();
   }
 
   public init(context?: WorkerPoolContext): Promise<Result<void, Error>> {
