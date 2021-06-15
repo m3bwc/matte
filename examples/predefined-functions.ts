@@ -19,7 +19,7 @@ pool
 
 pool.once('ready', () => {
   pool
-    .process<undefined, unknown>({
+    .process<undefined, number>({
       handler: () => {
         // @ts-ignore
         return pow({x:2, y:2});

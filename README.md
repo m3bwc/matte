@@ -64,7 +64,7 @@ pool.once('ready', () => {
   });
 });
 ```
-
+### Task abortion
 The next example will describe how we able to abort some tasks:
 ```typescript
 import assert from 'assert';
