@@ -102,6 +102,42 @@ pool.once('ready', () => {
 
 ```
 
+### Predefined context functions
+```typescript
+import assert from 'assert';
+import { WorkerPool } from '../src';
+
+const pool = new WorkerPool();
+
+pool
+  .init({
+    workers: { timeout: 100 },
+    fn: {
+      context: () => {
+        this.pow = ({ x, y }) => { // this - because it will been run in the VM context
+          return Math.pow(x, y);
+        };
+      },
+    },
+  })
+  .catch(console.error);
+
+pool.once('ready', () => {
+  pool
+    .process<undefined, unknown>({
+      handler: () => {
+        return pow({x:2, y:2});
+      },
+      callback: (result) => {
+        result.map(res => assert.strictEqual(res, 4));
+        pool.terminate();
+      },
+    })
+    .andThen((id) => pool.abort(id));
+});
+
+```
+
 ## Versioning
 
 We use [SemVer](http://semver.org/) for versioning. 
