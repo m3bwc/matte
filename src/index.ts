@@ -185,6 +185,8 @@ export class WorkerPool extends EventEmitter {
   public abort(id: TaskIdentity): Result<void, Error> {
     return this.isntTerminated.andThen(() => {
       if (this.taskQueue.has(id)) {
+        const task = this.taskQueue.get(id);
+        this.sendMessage(task, Err(new Error(`Task with id "${id}" was aborted`)))
         this.taskQueue.delete(id);
         return Ok.EMPTY;
       }
@@ -205,14 +207,14 @@ export class WorkerPool extends EventEmitter {
       .map(() => {
         this.terminated = true;
         try {
-          this.workers.forEach((node) => node.worker.postMessage({ event: 'terminate' }));
+          Array.from(this.taskQueue.entries()).forEach(([id]) => {
+            this.abort(id);
+          });
+          this.workers.forEach((node) => node.worker.terminate());
         } catch (e) {
           this.logger.error(e);
           return Err(e);
         }
-        setTimeout(() => {
-          this.workers.map((node) => node.worker.terminate());
-        }, this.timeout);
 
         return Ok.EMPTY;
       })

@@ -53,7 +53,6 @@ parentPort.on('message', (message) => {
 
     if (deserialized.event === 'terminate') {
       Array.from(vmContext.controllers.keys()).forEach((id) => {
-        console.log(id);
         abort(id);
       });
       runInContext(`(${terminateFn.toString()})()`, vmContext);
