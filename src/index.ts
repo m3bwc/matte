@@ -175,7 +175,9 @@ export class WorkerPool extends EventEmitter {
     return this.isntTerminated.map(() => {
       const id = nanoid();
       this.taskQueue.set(id, task);
-      this.emit(kTaskAdded);
+      queueMicrotask(() => {
+        this.emit(kTaskAdded);
+      })
       return id;
     });
   }
@@ -266,10 +268,13 @@ export class WorkerPool extends EventEmitter {
         }
 
         this.processing.delete(id);
-
-        this.emit(kTickEvent);
+        queueMicrotask(() => {
+          this.emit(kTickEvent);
+        });
         this.sendMessage(payload, error ? Err(error) : Ok(data)).mapErr((e) => {
-          this.emit('error', e);
+          queueMicrotask(() => {
+            this.emit('error', e);
+          })
         });
       }
     };
@@ -286,42 +291,43 @@ export class WorkerPool extends EventEmitter {
       return Ok.EMPTY;
     }
 
-    return this.freeNode
-      .map((node) => {
-        node.jobs += 1;
-        if (node.jobs === this.maxJobs) {
-          node.status = WorkerStatus.WORKER_STATE_BUSY;
-        }
-        const [id, payload] = this.taskQueue[Symbol.iterator]().next().value as [
-          TaskIdentity,
-          TaskPayload<unknown, unknown>,
-        ];
-        const timeout = setTimeout(() => {
-          this.abort(id).andThen(() => {
-            this.processing.delete(id);
-            return this.sendMessage(payload, Err(new Error('TaskTimeoutError')));
-          });
-        }, this.timeout);
-        this.processing.set(id, { ...payload, timeout });
-        try {
-          node.worker.postMessage({
-            handler: payload.handler?.toString(),
-            data: payload.data,
-            id,
-          });
-        } catch (e) {
-          this.logger.error(e);
+    return this.freeNode.map((node) => {
+      node.jobs += 1;
+      if (node.jobs === this.maxJobs) {
+        node.status = WorkerStatus.WORKER_STATE_BUSY;
+      }
+      const [id, payload] = this.taskQueue[Symbol.iterator]().next().value as [
+        TaskIdentity,
+        TaskPayload<unknown, unknown>,
+      ];
+      const timeout = setTimeout(() => {
+        this.abort(id).andThen(() => {
+          this.processing.delete(id);
+          return this.sendMessage(payload, Err(new Error('TaskTimeoutError')));
+        });
+      }, this.timeout);
+      this.processing.set(id, { ...payload, timeout });
+      try {
+        node.worker.postMessage({
+          handler: payload.handler?.toString(),
+          data: payload.data,
+          id,
+        });
+      } catch (e) {
+        this.logger.error(e);
 
-          this.sendMessage(payload, e).andThen(() => {
-            node.worker?.terminate();
-            node.status = WorkerStatus.WORKER_STATE_OFF;
+        this.sendMessage(payload, e).andThen(() => {
+          node.worker?.terminate();
+          node.status = WorkerStatus.WORKER_STATE_OFF;
+          queueMicrotask(() => {
             this.emit(kTickEvent);
-            return Ok.EMPTY;
-          });
-        }
-        this.taskQueue.delete(id);
-        return;
-      });
+          })
+          return Ok.EMPTY;
+        });
+      }
+      this.taskQueue.delete(id);
+      return;
+    });
   }
 
   private sendMessage(
