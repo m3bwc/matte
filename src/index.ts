@@ -102,6 +102,7 @@ export class WorkerPool extends EventEmitter {
   constructor() {
     super();
     this.on(kTaskAdded, () => this.tick());
+    this.on(kTickEvent, () => this.tick());
     this.setMaxListeners(0);
   }
 
@@ -134,7 +135,7 @@ export class WorkerPool extends EventEmitter {
         this.workersConfig = context?.workers;
         this.maxJobs = this.workersConfig?.jobs > 0 ? this.workersConfig?.jobs : 1;
         this.timeout = context?.workers?.timeout || 1500;
-        this.logger = { ...console, verbose: context?.verbose ? console.log : () => undefined };
+        this.logger = { ...console, verbose: context?.verbose ? console.log : () => void 0 };
 
         const maxWorkers = this.workersConfig?.max > 0 ? this.workersConfig?.max : cpus().length;
         const persistentContextFn = makeFunctionString(context?.fn?.context);
@@ -320,10 +321,6 @@ export class WorkerPool extends EventEmitter {
         }
         this.taskQueue.delete(id);
         return;
-      })
-      .mapErr((err) => {
-        this.once(kTickEvent, () => this.tick());
-        return err;
       });
   }
 
