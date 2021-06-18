@@ -32,7 +32,6 @@ describe('Worker pool', () => {
           this.bar = context;
         },
         terminate: function () {
-          return Ok.EMPTY;
         },
       },
     });
@@ -46,7 +45,6 @@ describe('Worker pool', () => {
           this.bar = context;
         },
         terminate: function () {
-          return Ok.EMPTY;
         },
       },
     });
