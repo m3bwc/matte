@@ -82,14 +82,16 @@ export type WorkerPoolContext = {
   logger?: WorkerPoolLogger;
   fn?: {
     context?: (data: unknown) => void;
-    terminate?: () => Result<void, Error>;
+    terminate?: () => void | Promise<void>;
   };
   context?: unknown;
   workers?: WorkersConfig;
+  terminateTimeout?: number;
 };
 
 export class WorkerPool extends EventEmitter {
   private terminated = false;
+  private terminateTimeout = 1500;
   private timeout: number;
   private maxJobs: number;
   private taskQueue = new Map<TaskIdentity, TaskPayload<unknown, unknown>>();
@@ -132,9 +134,10 @@ export class WorkerPool extends EventEmitter {
       }
       this.terminated = false;
       try {
+        this.terminateTimeout = context?.terminateTimeout ?? 1500;
         this.workersConfig = context?.workers;
         this.maxJobs = this.workersConfig?.jobs > 0 ? this.workersConfig?.jobs : 1;
-        this.timeout = context?.workers?.timeout || 1500;
+        this.timeout = context?.workers?.timeout ?? 1500;
         this.logger = { ...console, verbose: context?.verbose ? console.log : () => void 0 };
 
         const maxWorkers = this.workersConfig?.max > 0 ? this.workersConfig?.max : cpus().length;
@@ -207,14 +210,18 @@ export class WorkerPool extends EventEmitter {
       .map(() => {
         this.terminated = true;
         try {
+          this.workers.forEach((node) => node.worker.postMessage({event:'terminate'}))
           Array.from(this.taskQueue.entries()).forEach(([id]) => {
             this.abort(id);
           });
-          this.workers.forEach((node) => node.worker.terminate());
         } catch (e) {
           this.logger.error(e);
           return Err(e);
         }
+
+        setTimeout(() => {
+          this.workers.forEach((node) => node.worker.terminate());
+        }, this.terminateTimeout);
 
         return Ok.EMPTY;
       })
