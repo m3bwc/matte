@@ -39,7 +39,7 @@ type TaskTimeout = {
   timeout: NodeJS.Timeout;
 };
 
-interface TaskPayload<P, V> {
+export interface TaskPayload<P, V> {
   context?: unknown;
   data?: P;
   handler: (data: P & { id: TaskIdentity }, signal?: AbortSignal) => V | Promise<V>;
