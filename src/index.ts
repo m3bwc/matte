@@ -39,14 +39,14 @@ type TaskTimeout = {
   timeout: NodeJS.Timeout;
 };
 
-export interface TaskPayload<P, V> {
+export interface TaskPayload<P, V, E = unknown> {
   context?: unknown;
   data?: P;
   handler: (data: P & { id: TaskIdentity }, signal?: AbortSignal) => V | Promise<V>;
-  callback?: (data: Result<Maybe<V>, Error>) => void;
+  callback?: (data: Result<Maybe<V>, E>) => void;
   promise?: {
     resolve: (value?: Ok<V> | PromiseLike<Ok<V>>) => void;
-    reject: (reason: Err<Error>) => void;
+    reject: (reason: Err<E>) => void;
   };
 }
 
@@ -174,7 +174,7 @@ export class WorkerPool extends EventEmitter {
     });
   }
 
-  public process<P, V>(task: TaskPayload<P, V>): Result<string, Error> {
+  public process<P, V, E = Error>(task: TaskPayload<P, V, E>): Result<string, Error> {
     return this.isntTerminated.map(() => {
       const id = nanoid();
       this.taskQueue.set(id, task);
