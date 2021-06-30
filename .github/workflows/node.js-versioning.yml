@@ -1,0 +1,25 @@
+# The name may be anything you like
+name: Versioning
+on:
+ push:
+  # The workflow will run when a push lands on the main branch
+  branches: [master]
+jobs:
+ # This name may also be arbitrary
+ versioning:
+  # I didn't test it on Windows but it should be ok
+  runs-on: ubuntu-latest
+  steps:
+   # Use checkout action to get the code
+   - uses: actions/checkout@v2
+     with:
+      # Full depth is important because by default checkout action only fetches one commit
+      fetch-depth: 0
+   # Install Node to make or-release work
+   - name: Setup Node
+     uses: actions/setup-node@v1
+     with:
+      node-version: '14.x'
+   # Do stuff
+   - name: Publish new release (if applicable)
+     run: npx or-release --token=${{ secrets.OR_RELEASE_TOKEN }} --repository=$GITHUB_REPOSITORY --config-file=or-release.json
