@@ -51,18 +51,21 @@ const pow = ({ x, y }: PowPool) => {
 
 const pool = new WorkerPool();
 
-pool.init({ workers: { timeout: 200 } }).catch(console.error);
-
-pool.once('ready', () => {
-  const taskId = pool.process<PowPool, number>({
-    handler: pow,
-    data: { x: 2, y: 2 },
-    callback: (result) => {
-      assert.strictEqual(result.val, 4);
-      pool.terminate();
-    },
+pool
+  .init({ workers: { timeout: 200 } })
+  .catch(console.error)
+  .then(() => {
+    const taskId = pool.process<PowPool, number>({
+      handler: pow,
+      data: { x: 2, y: 2 },
+      callback: (result) => {
+        assert.strictEqual(result.val, 4);
+        console.log('Always works');
+        pool.terminate();
+      },
+    });
   });
-});
+
 ```
 ### Task abortion
 The next example will describe how we able to abort some tasks:
@@ -71,41 +74,47 @@ import assert from 'assert';
 import { WorkerPool } from '@datapain/matte';
 import type { AbortSignal } from 'abort-controller';
 
-const reallyLongTask = async (_, signal: AbortSignal) => new Promise((res, rej) => {
-  const timeoutId = setTimeout(() => {
-    res('BOOM!');
-  }, 200);
-  signal.addEventListener('abort', () => {
-    clearTimeout(timeoutId);
-    rej(new Error('Task was aborted'));
-  })
-})
+const reallyLongTask = async (_, signal: AbortSignal) =>
+  new Promise((res, rej) => {
+    const timeoutId = setTimeout(() => {
+      res('BOOM!');
+    }, 200);
+    signal.addEventListener('abort', () => {
+      clearTimeout(timeoutId);
+      rej(new Error('Task was aborted'));
+    });
+  });
 
 const pool = new WorkerPool();
 
-pool.init({ workers: { timeout: 100 } }).catch(console.error);
-
-pool.once('ready', () => {
-  pool.process<undefined, unknown>({
-    handler: reallyLongTask,
-    callback: (result) => {
-      result.map(() => {
-        throw new Error('BOOM');
-      }).mapErr((err) => {
-        assert.strictEqual(err.message, 'Task was aborted');
-        console.log('Always works!');
+pool
+  .init({ workers: { timeout: 100 } })
+  .catch(console.error)
+  .then(() => {
+    pool
+      .process<undefined, unknown>({
+        handler: reallyLongTask,
+        callback: (result) => {
+          result
+            .map(() => {
+              throw new Error('BOOM');
+            })
+            .mapErr((err) => {
+              assert.strictEqual(err.message, 'Task was aborted');
+              console.log('Always works!');
+            });
+          pool.terminate();
+        },
       })
-      pool.terminate();
-    },
-  }).andThen(id => pool.abort(id));
-});
+      .andThen((id) => pool.abort(id));
+  });
 
 ```
 
 ### Predefined context functions
 ```typescript
 import assert from 'assert';
-import { WorkerPool } from '../src';
+import { WorkerPool } from '@datapain/matte';
 
 const pool = new WorkerPool();
 
@@ -114,27 +123,28 @@ pool
     workers: { timeout: 100 },
     fn: {
       context: () => {
-        this.pow = ({ x, y }) => { // this - because it will been run in the VM context
+        // @ts-ignore
+        this.pow = ({ x, y }) => {
           return Math.pow(x, y);
         };
       },
     },
   })
-  .catch(console.error);
-
-pool.once('ready', () => {
-  pool
-    .process<undefined, unknown>({
-      handler: () => {
-        return pow({x:2, y:2});
-      },
-      callback: (result) => {
-        result.map(res => assert.strictEqual(res, 4));
-        pool.terminate();
-      },
-    })
-    .andThen((id) => pool.abort(id));
-});
+  .catch(console.error)
+  .then(() => {
+    pool
+      .process<undefined, number>({
+        handler: () => {
+          // @ts-ignore
+          return pow({ x: 2, y: 2 });
+        },
+        callback: (result) => {
+          result.map((res) => assert.strictEqual(res, 4));
+          pool.terminate();
+        },
+      })
+      .andThen((id) => pool.abort(id));
+  });
 
 ```
 

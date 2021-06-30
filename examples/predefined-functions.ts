@@ -15,19 +15,18 @@ pool
       },
     },
   })
-  .catch(console.error);
-
-pool.once('ready', () => {
-  pool
-    .process<undefined, number>({
-      handler: () => {
-        // @ts-ignore
-        return pow({x:2, y:2});
-      },
-      callback: (result) => {
-        result.map(res => assert.strictEqual(res, 4));
-        pool.terminate();
-      },
-    })
-    .andThen((id) => pool.abort(id));
-});
+  .catch(console.error)
+  .then(() => {
+    pool
+      .process<undefined, number>({
+        handler: () => {
+          // @ts-ignore
+          return pow({ x: 2, y: 2 });
+        },
+        callback: (result) => {
+          result.map((res) => assert.strictEqual(res, 4));
+          pool.terminate();
+        },
+      })
+      .andThen((id) => pool.abort(id));
+  });

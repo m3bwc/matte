@@ -89,7 +89,7 @@ export type WorkerPoolContext = {
   terminateTimeout?: number;
 };
 
-export class WorkerPool extends EventEmitter {
+export class WorkerPool {
   private terminated = false;
   private terminateTimeout = 1500;
   private timeout: number;
@@ -100,12 +100,14 @@ export class WorkerPool extends EventEmitter {
   private logger: WorkerPoolLogger;
   private workersConfig: WorkersConfig;
   private workerScript: string;
+  private eventEmitter: EventEmitter;
 
   constructor() {
-    super();
-    this.on(kTaskAdded, () => this.tick());
-    this.on(kTickEvent, () => this.tick());
-    this.setMaxListeners(0);
+    this.eventEmitter = new EventEmitter();
+
+    this.eventEmitter.on(kTaskAdded, () => this.tick());
+    this.eventEmitter.on(kTickEvent, () => this.tick());
+    // this.setMaxListeners(0);
   }
 
   private get isntTerminated(): Result<void, Error> {
@@ -123,7 +125,7 @@ export class WorkerPool extends EventEmitter {
 
   public init(context?: WorkerPoolContext): Promise<Result<void, Error>> {
     return new Promise((resolve, reject) => {
-      this.once('ready', () => {
+      this.eventEmitter.once('ready', () => {
         resolve(Ok.EMPTY);
       });
       if (this.terminated) {
@@ -161,7 +163,7 @@ export class WorkerPool extends EventEmitter {
                 this.workers.length === maxWorkers &&
                 this.workers.every((worker) => worker.status === WorkerStatus.WORKER_STATE_ONLINE)
               ) {
-                this.emit('ready');
+                this.eventEmitter.emit('ready');
               }
             }),
           );
@@ -179,7 +181,7 @@ export class WorkerPool extends EventEmitter {
       const id = nanoid();
       this.taskQueue.set(id, task);
       queueMicrotask(() => {
-        this.emit(kTaskAdded);
+        this.eventEmitter.emit(kTaskAdded);
       })
       return id;
     });
@@ -244,7 +246,7 @@ export class WorkerPool extends EventEmitter {
   private handleWorkerOnline(index: number, cb?: () => void): (...args: unknown[]) => void {
     return () => {
       this.workers[index].status = WorkerStatus.WORKER_STATE_ONLINE;
-      this.emit(kTickEvent);
+      this.eventEmitter.emit(kTickEvent);
       if (isFunction(cb)) {
         cb();
       }
@@ -278,11 +280,11 @@ export class WorkerPool extends EventEmitter {
 
         this.processing.delete(id);
         queueMicrotask(() => {
-          this.emit(kTickEvent);
+          this.eventEmitter.emit(kTickEvent);
         });
         this.sendMessage(payload, error ? Err(error) : Ok(data)).mapErr((e) => {
           queueMicrotask(() => {
-            this.emit('error', e);
+            this.eventEmitter.emit('error', e);
           })
         });
       }
@@ -329,7 +331,7 @@ export class WorkerPool extends EventEmitter {
           node.worker?.terminate();
           node.status = WorkerStatus.WORKER_STATE_OFF;
           queueMicrotask(() => {
-            this.emit(kTickEvent);
+            this.eventEmitter.emit(kTickEvent);
           })
           return Ok.EMPTY;
         });
