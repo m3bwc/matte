@@ -59,13 +59,20 @@ parentPort.on('message', (message) => {
     }
 
     if (handler) {
-      try {
-        const controller =
+      let controller;
+      try{
+         controller =
           'AbortController' in global
             ? new AbortController()
             : new (require('abort-controller').AbortController)();
-        vmContext.controllers.set(id, controller);
 
+      } catch(e) {
+        controller = { signal: undefined }
+      } finally {
+        vmContext.controllers.set(id, controller);
+      }
+
+      try {
         if (!response.id) {
           throw new Error('Response id is not defined');
         }
