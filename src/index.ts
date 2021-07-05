@@ -237,7 +237,10 @@ export class WorkerPool {
     });
     this.workers[position].worker = worker;
     this.workers[position].jobs = 0;
-
+    this.workers[position].status = WorkerStatus.WORKER_STATE_SPAWNING;
+    worker.once('online', () => {
+      this.workers[position].status = WorkerStatus.WORKER_STATE_ONLINE;
+    })
     worker.once('online', this.handleWorkerOnline(position).bind(this));
     worker.once('error', this.handleWorkerError(position).bind(this));
     worker.on('message', this.handleWorkerMessage(position).bind(this));
