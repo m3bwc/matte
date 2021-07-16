@@ -67,7 +67,7 @@ parentPort.on('message', (message) => {
             : new (require('abort-controller').AbortController)();
 
       } catch(e) {
-        controller = { signal: undefined }
+        controller = { signal: undefined, abort: () => {} }
       } finally {
         vmContext.controllers.set(id, controller);
       }
