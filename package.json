@@ -1,6 +1,6 @@
 {
   "name": "@datapain/matte",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "description": "Implementation a thread pool pattern for node.js",
   "main": "index.js",
   "publishConfig": {
