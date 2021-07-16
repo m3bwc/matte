@@ -22,9 +22,9 @@ type Maybe<T> = T | undefined;
 
 type TaskIdentity = string;
 
-export class TaskError extends Error {
+export class TaskError<T> extends Error {
   public data: unknown;
-  constructor(message, data = undefined) {
+  constructor(message, data: T = undefined) {
     super(message);
     this.data = data;
   }
