@@ -22,6 +22,14 @@ type Maybe<T> = T | undefined;
 
 type TaskIdentity = string;
 
+export class TaskError extends Error {
+  public data: unknown;
+  constructor(message, data = undefined) {
+    super(message);
+    this.data = data;
+  }
+}
+
 type WorkerNodeResourceLimit = {
   maxOldGenerationSizeMb?: number;
   maxYoungGenerationSizeMb?: number;
@@ -111,12 +119,12 @@ export class WorkerPool {
   }
 
   private get isntTerminated(): Result<void, Error> {
-    return this.terminated ? Err(new Error(`${this.constructor.name} is terminated`)) : Ok.EMPTY;
+    return this.terminated ? Err(new TaskError(`${this.constructor.name} is terminated`)) : Ok.EMPTY;
   }
 
   private get freeNode(): Result<WorkerNode, Error> {
     const worker = this.workers.find((w) => w.status === WorkerStatus.WORKER_STATE_ONLINE);
-    return worker ? Ok(worker) : Err(Error('No free worker'));
+    return worker ? Ok(worker) : Err(new TaskError('No free worker'));
   }
 
   public static of(): WorkerPool {
@@ -191,7 +199,7 @@ export class WorkerPool {
     return this.isntTerminated.andThen(() => {
       if (this.taskQueue.has(id)) {
         const task = this.taskQueue.get(id);
-        this.sendMessage(task, Err(new Error(`Task with id "${id}" was aborted`)))
+        this.sendMessage(task, Err(new TaskError(`Task with id "${id}" was aborted`)))
         this.taskQueue.delete(id);
         return Ok.EMPTY;
       }
@@ -203,7 +211,7 @@ export class WorkerPool {
           return Err(e);
         }
       }
-      return Err(new Error(`Task with id "${id}" was not found`));
+      return Err(new TaskError(`Task with id "${id}" was not found`));
     });
   }
 
@@ -315,7 +323,7 @@ export class WorkerPool {
       const timeout = setTimeout(() => {
         this.abort(id).andThen(() => {
           this.processing.delete(id);
-          return this.sendMessage(payload, Err(new Error('TaskTimeoutError')));
+          return this.sendMessage(payload, Err(new TaskError('TaskTimeoutError', payload.data)));
         });
       }, this.timeout);
       this.processing.set(id, { ...payload, timeout });
