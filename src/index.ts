@@ -152,7 +152,7 @@ export class WorkerPool {
 
         const maxWorkers = this.workersConfig?.max > 0 ? this.workersConfig?.max : cpus().length;
         const persistentContextFn = makeFunctionString(context?.fn?.context);
-        const terminateFn = makeFunctionString(context?.fn?.context);
+        const terminateFn = makeFunctionString(context?.fn?.terminate);
         this.workerScript = readFileSync(join(__dirname, 'worker.js'), 'utf8')
           .replace('__persistent_context_initialization__', persistentContextFn)
           .replace('__persistent_context_data__', JSON.stringify(context?.context))
