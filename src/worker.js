@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 const { parentPort } = require('worker_threads');
 const { createContext, runInContext } = require('vm');
+const { deserialize, serialize } = require('v8');
 
 const persistentContext = __persistent_context_data__;
 
@@ -37,7 +38,7 @@ const abort = abortFunction(vmContext);
 
 parentPort.on('message', (message) => {
   setImmediate(async () => {
-    const deserialized = message;
+    const deserialized = deserialize(message);
 
     const { handler, data, id } = deserialized;
 
@@ -95,7 +96,7 @@ parentPort.on('message', (message) => {
       }
 
       try {
-        parentPort.postMessage(response);
+        parentPort.postMessage(serialize(response));
         Reflect.deleteProperty(response, 'data');
         Reflect.deleteProperty(response, 'error');
         Reflect.deleteProperty(response, 'id');

@@ -6,6 +6,8 @@ import { join } from 'path';
 import EventEmitter from 'events';
 import { cpus } from 'os';
 import type { AbortSignal } from 'abort-controller';
+import { deserialize, serialize } from 'v8';
+import TypedArray = NodeJS.TypedArray;
 
 const kTickEvent = Symbol('kTickEvent');
 const kTaskAdded = Symbol('kTaskAdded');
@@ -205,7 +207,7 @@ export class WorkerPool {
       }
       if (this.processing.has(id)) {
         try {
-          this.workers.forEach((node) => node.worker.postMessage({ event: 'abort', id }));
+          this.workers.forEach((node) => node.worker.postMessage(serialize({ event: 'abort', id })));
           return Ok.EMPTY;
         } catch (e) {
           return Err(e);
@@ -220,7 +222,7 @@ export class WorkerPool {
       .map(() => {
         this.terminated = true;
         try {
-          this.workers.forEach((node) => node.worker.postMessage({event:'terminate'}))
+          this.workers.forEach((node) => node.worker.postMessage(serialize({event:'terminate'})))
           Array.from(this.taskQueue.entries()).forEach(([id]) => {
             this.abort(id);
           });
@@ -272,8 +274,8 @@ export class WorkerPool {
   }
 
   private handleWorkerMessage(index: number): (...args: unknown[]) => void {
-    return (message: WorkerNodeResponse<unknown>): void => {
-      const { error, data, id } = message;
+    return (message: TypedArray): void => {
+      const { error, data, id } = deserialize(message) as WorkerNodeResponse<unknown>;
 
       const jobs = this.workers[index].jobs - 1;
       this.workers[index].jobs = jobs < 0 ? 0 : jobs;
@@ -328,11 +330,11 @@ export class WorkerPool {
       }, this.timeout);
       this.processing.set(id, { ...payload, timeout });
       try {
-        node.worker.postMessage({
+        node.worker.postMessage(serialize({
           handler: payload.handler?.toString(),
           data: payload.data,
           id,
-        });
+        }));
       } catch (e) {
         this.logger.error(e);
 
