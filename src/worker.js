@@ -16,6 +16,7 @@ const context = {
   clearInterval,
   setImmediate,
   controllers: new Map(),
+  processing: new Map(),
 };
 
 const vmContext = createContext(context);
@@ -78,31 +79,33 @@ parentPort.on('message', (message) => {
           throw new Error('Response id is not defined');
         }
 
-        const script = `try {
-      this['${response.id}'] = (${handler})(${JSON.stringify(
-          data,
-        )}, this.controllers.get('${id}').signal);
-     } catch (e) { this['${response.id}'] = e; }`;
+        const script = `
+        try {
+          processing.set('${response.id}', (${handler})(${JSON.stringify(data)}, this.controllers.get('${id}').signal));
+        } catch (e) {
+          processing.set('${response.id}', e);
+        }`;
         runInContext(script, vmContext, { displayErrors: true });
-        response.data = await vmContext[response.id];
+        response.data = await vmContext.processing.get(response.id);
         if (response.data instanceof Error) {
           throw response.data;
         }
       } catch (e) {
         response.error = e;
         response.data = undefined;
-      } finally {
-        vmContext.controllers.delete(id);
       }
 
       try {
         parentPort.postMessage(serialize(response));
-        Reflect.deleteProperty(response, 'data');
-        Reflect.deleteProperty(response, 'error');
-        Reflect.deleteProperty(response, 'id');
       } catch (e) {
         console.error(e);
         process.exit(1);
+      } finally {
+        vmContext.controllers.delete(id);
+        vmContext.processing.delete(response.id);
+        Reflect.deleteProperty(response, 'data');
+        Reflect.deleteProperty(response, 'error');
+        Reflect.deleteProperty(response, 'id');
       }
     }
   });
