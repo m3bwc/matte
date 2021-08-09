@@ -105,7 +105,8 @@ export class WorkerPool {
   private timeout: number;
   private maxJobs: number;
   private taskQueue = new Map<TaskIdentity, TaskPayload<unknown, unknown>>();
-  private processing = new Map<TaskIdentity, TaskPayload<unknown, unknown> & TaskTimeout>();
+  private processing = new Map<TaskIdentity, TaskPayload<unknown, unknown>>();
+  private timeouts = new Map<TaskIdentity, NodeJS.Timeout>();
   private workers: WorkerNode[] = [];
   private logger: WorkerPoolLogger;
   private workersConfig: WorkersConfig;
@@ -117,7 +118,6 @@ export class WorkerPool {
 
     this.eventEmitter.on(kTaskAdded, () => this.tick());
     this.eventEmitter.on(kTickEvent, () => this.tick());
-    // this.setMaxListeners(0);
   }
 
   private get isntTerminated(): Result<void, Error> {
@@ -285,11 +285,14 @@ export class WorkerPool {
 
       if (this.processing.has(id)) {
         const payload = this.processing.get(id);
-        if (id && payload && payload.timeout) {
-          clearTimeout(payload.timeout);
+        const timeout = this.timeouts.get(id);
+        if (id && timeout) {
+          clearTimeout(timeout);
         }
 
         this.processing.delete(id);
+        this.timeouts.delete(id);
+
         queueMicrotask(() => {
           this.eventEmitter.emit(kTickEvent);
         });
@@ -328,7 +331,8 @@ export class WorkerPool {
           return this.sendMessage(payload, Err(new TaskError('TaskTimeoutError', payload.data)));
         });
       }, this.timeout);
-      this.processing.set(id, { ...payload, timeout });
+      this.timeouts.set(id, timeout);
+      this.processing.set(id, payload);
       try {
         node.worker.postMessage(serialize({
           handler: payload.handler?.toString(),
