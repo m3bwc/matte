@@ -117,7 +117,8 @@ export class WorkerPool {
 
     this.eventEmitter.on(kTaskAdded, () => this.tick());
     this.eventEmitter.on(kTickEvent, () => this.tick());
-    // this.setMaxListeners(0);
+
+    setInterval(() => queueMicrotask(() => this.eventEmitter.emit(kTickEvent)), 200)
   }
 
   private get isntTerminated(): Result<void, Error> {
