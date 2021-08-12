@@ -62,14 +62,13 @@ parentPort.on('message', (message) => {
 
     if (handler) {
       let controller;
-      try{
-         controller =
+      try {
+        controller =
           'AbortController' in global
             ? new AbortController()
             : new (require('abort-controller').AbortController)();
-
-      } catch(e) {
-        controller = { signal: undefined, abort: () => {} }
+      } catch (e) {
+        controller = { signal: undefined, abort: () => {} };
       } finally {
         vmContext.controllers.set(id, controller);
       }
@@ -94,19 +93,19 @@ parentPort.on('message', (message) => {
         response.error = e;
         response.data = undefined;
       }
+    }
 
-      try {
-        parentPort.postMessage(serialize(response));
-      } catch (e) {
-        console.error(e);
-        process.exit(1);
-      } finally {
-        vmContext.controllers.delete(id);
-        vmContext.processing.delete(response.id);
-        Reflect.deleteProperty(response, 'data');
-        Reflect.deleteProperty(response, 'error');
-        Reflect.deleteProperty(response, 'id');
-      }
+    try {
+      parentPort.postMessage(serialize(response));
+    } catch (e) {
+      console.error(e);
+      process.exit(1);
+    } finally {
+      vmContext.controllers.delete(id);
+      vmContext.processing.delete(response.id);
+      Reflect.deleteProperty(response, 'data');
+      Reflect.deleteProperty(response, 'error');
+      Reflect.deleteProperty(response, 'id');
     }
   });
 });

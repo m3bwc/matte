@@ -190,9 +190,9 @@ export class WorkerPool {
     return this.isntTerminated.map(() => {
       const id = nanoid();
       this.taskQueue.set(id, task);
-      queueMicrotask(() => {
+      setImmediate(() => {
         this.eventEmitter.emit(kTaskAdded);
-      })
+      });
       return id;
     });
   }
