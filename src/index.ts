@@ -111,6 +111,7 @@ export class WorkerPool {
   private workersConfig: WorkersConfig;
   private workerScript: string;
   private eventEmitter: EventEmitter;
+  private tickInterval: NodeJS.Timeout | null = null;
 
   constructor() {
     this.eventEmitter = new EventEmitter();
@@ -118,7 +119,7 @@ export class WorkerPool {
     this.eventEmitter.on(kTaskAdded, () => this.tick());
     this.eventEmitter.on(kTickEvent, () => this.tick());
 
-    setInterval(() => queueMicrotask(() => this.eventEmitter.emit(kTickEvent)), 200)
+    this.tickInterval = setInterval(() => queueMicrotask(() => this.eventEmitter.emit(kTickEvent)), 200);
   }
 
   private get isntTerminated(): Result<void, Error> {
@@ -140,13 +141,22 @@ export class WorkerPool {
         resolve(Ok.EMPTY);
       });
       if (this.terminated) {
-        return this.terminate().map(() => {
+        this.terminate().map(() => {
           this.terminated = false;
           return this.init(context);
         });
+        return;
       }
       this.terminated = false;
       try {
+        if (this.tickInterval) {
+            clearInterval(this.tickInterval);
+            this.tickInterval = null;
+        }
+        if (!this.tickInterval) {
+            this.tickInterval = setInterval(() => queueMicrotask(() => this.eventEmitter.emit(kTickEvent)), 200);
+        }
+
         this.terminateTimeout = context?.terminateTimeout ?? 1500;
         this.workersConfig = context?.workers;
         this.maxJobs = this.workersConfig?.jobs > 0 ? this.workersConfig?.jobs : 1;
@@ -228,6 +238,12 @@ export class WorkerPool {
     return this.isntTerminated
       .map(() => {
         this.terminated = true;
+
+        if (this.tickInterval) {
+          clearInterval(this.tickInterval);
+          this.tickInterval = null;
+        }
+
         try {
           Array.from(this.taskQueue.entries()).forEach(([id, task]) => {
             this.taskQueue.delete(id);
