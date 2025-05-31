@@ -202,15 +202,21 @@ export class WorkerPool {
     return this.isntTerminated.andThen(() => {
       if (this.taskQueue.has(id)) {
         const task = this.taskQueue.get(id);
-        this.sendMessage(task, Err(new TaskError(`Task with id "${id}" was aborted`)))
         this.taskQueue.delete(id);
+        this.sendMessage(task, Err(new TaskError(`Task with id "${id}" was aborted from queue`)));
         return Ok.EMPTY;
       }
       if (this.processing.has(id)) {
+        const payload = this.processing.get(id) as TaskPayload<unknown, unknown> & TaskTimeout;
         try {
           this.workers.forEach((node) => node.worker.postMessage(serialize({ event: 'abort', id })));
           return Ok.EMPTY;
         } catch (e) {
+          if (payload && payload.timeout) {
+            clearTimeout(payload.timeout);
+          }
+          this.processing.delete(id);
+          this.sendMessage(payload, Err(new TaskError(`Task with id "${id}" failed to signal abort to worker due to: ${e.message}`, e)));
           return Err(e);
         }
       }
@@ -223,17 +229,40 @@ export class WorkerPool {
       .map(() => {
         this.terminated = true;
         try {
-          this.workers.forEach((node) => node.worker.postMessage(serialize({event:'terminate'})))
-          Array.from(this.taskQueue.entries()).forEach(([id]) => {
-            this.abort(id);
+          Array.from(this.taskQueue.entries()).forEach(([id, task]) => {
+            this.taskQueue.delete(id);
+            this.sendMessage(task, Err(new TaskError(`Task with id "${id}" was aborted due to pool termination`)));
           });
+
+          Array.from(this.processing.entries()).forEach(([id, taskWithTimeout]) => {
+            if (taskWithTimeout.timeout) {
+              clearTimeout(taskWithTimeout.timeout);
+            }
+            this.processing.delete(id);
+            this.sendMessage(taskWithTimeout, Err(new TaskError(`Task with id "${id}" was aborted due to pool termination`, taskWithTimeout.data)));
+          });
+
+          this.workers.forEach((node) => {
+            try {
+              node.worker.postMessage(serialize({ event: 'terminate' }));
+            } catch(e) {
+              this.logger.error(`Error sending terminate signal to worker: ${e.message}`);
+            }
+          });
+
         } catch (e) {
           this.logger.error(e);
-          return Err(e);
         }
 
         setTimeout(() => {
-          this.workers.forEach((node) => node.worker.terminate());
+          this.workers.forEach((node) => {
+            try {
+              node.worker.terminate();
+            } catch (e) {
+              this.logger.error(`Error terminating worker: ${e.message}`);
+            }
+          });
+          this.workers = [];
         }, this.terminateTimeout);
 
         return Ok.EMPTY;
@@ -323,13 +352,19 @@ export class WorkerPool {
         TaskIdentity,
         TaskPayload<unknown, unknown>,
       ];
-      const timeout = setTimeout(() => {
-        this.abort(id).andThen(() => {
+      const taskTimeoutHandle = setTimeout(() => {
+        const timedOutTaskPayload = this.processing.get(id) as TaskPayload<unknown, unknown> & TaskTimeout;
+        if (timedOutTaskPayload) {
           this.processing.delete(id);
-          return this.sendMessage(payload, Err(new TaskError('TaskTimeoutError', payload.data)));
-        });
+          this.sendMessage(timedOutTaskPayload, Err(new TaskError('TaskTimeoutError', timedOutTaskPayload.data)));
+          try {
+            this.workers.forEach((workerNode) => workerNode.worker.postMessage(serialize({ event: 'abort', id })));
+          } catch (e) {
+            this.logger.error(`Error sending post-timeout abort signal for task ${id}: ${e.message}`);
+          }
+        }
       }, this.timeout);
-      this.processing.set(id, { ...payload, timeout });
+      this.processing.set(id, { ...payload, timeout: taskTimeoutHandle });
       try {
         node.worker.postMessage(serialize({
           handler: payload.handler?.toString(),
@@ -338,13 +373,16 @@ export class WorkerPool {
         }));
       } catch (e) {
         this.logger.error(e);
-
-        this.sendMessage(payload, e).andThen(() => {
-          node.worker?.terminate();
-          node.status = WorkerStatus.WORKER_STATE_OFF;
+        clearTimeout(taskTimeoutHandle);
+        this.processing.delete(id);
+        node.jobs = Math.max(0, node.jobs - 1);
+        if (node.jobs < this.maxJobs) {
+            node.status = WorkerStatus.WORKER_STATE_ONLINE;
+        }
+        this.sendMessage(payload, Err(e)).andThen(() => {
           queueMicrotask(() => {
             this.eventEmitter.emit(kTickEvent);
-          })
+          });
           return Ok.EMPTY;
         });
       }
